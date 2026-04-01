@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -11,36 +12,54 @@ import {
   Link,
   Divider,
   Alert,
+  CircularProgress,
 } from '@mui/material'
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import ComputerIcon from '@mui/icons-material/Computer'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CancelIcon from '@mui/icons-material/Cancel'
 import BuildIcon from '@mui/icons-material/Build'
-import { MOCK_CLUBS, MOCK_COMPUTERS } from '../mocks/data'
+import { getClub } from '../api/clubs'
+import { getComputers } from '../api/computers'
 
 const STATUS_CONFIG = {
   free:        { label: 'Вільний',    color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
-  busy:        { label: 'Зайнятий',   color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   icon: <CancelIcon sx={{ fontSize: 14 }} /> },
   maintenance: { label: 'Тех. огляд', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', icon: <BuildIcon sx={{ fontSize: 14 }} /> },
 }
 
 const ClubDetailPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [club, setClub] = useState(null)
+  const [computers, setComputers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const club = MOCK_CLUBS.find((c) => c.id === Number(id))
-  const computers = MOCK_COMPUTERS[Number(id)] || []
+  useEffect(() => {
+    Promise.all([getClub(id), getComputers(id)])
+      .then(([clubData, computersData]) => {
+        setClub(clubData)
+        setComputers(computersData)
+      })
+      .catch(() => setError('Не вдалося завантажити дані клубу'))
+      .finally(() => setLoading(false))
+  }, [id])
 
-  if (!club) {
-    return <Alert severity="error">Клуб не знайдено</Alert>
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress sx={{ color: '#a855f7' }} />
+      </Box>
+    )
   }
 
-  const freeCount = computers.filter((c) => c.is_active && c.status === 'free').length
-  const busyCount = computers.filter((c) => c.status === 'busy').length
-  const maintenanceCount = computers.filter((c) => c.status === 'maintenance').length
+  if (error || !club) {
+    return <Alert severity="error">{error || 'Клуб не знайдено'}</Alert>
+  }
+
+  const freeCount = computers.filter((c) => c.is_active).length
+  const maintenanceCount = computers.filter((c) => !c.is_active).length
 
   return (
     <Box>
@@ -103,8 +122,7 @@ const ClubDetailPage = () => {
         {/* Stats row */}
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           {[
-            { label: 'Вільних',    value: freeCount,        color: '#10b981' },
-            { label: 'Зайнятих',   value: busyCount,        color: '#ef4444' },
+            { label: 'Доступних',  value: freeCount,        color: '#10b981' },
             { label: 'Тех. огляд', value: maintenanceCount, color: '#f59e0b' },
             { label: 'Всього',     value: computers.length, color: '#a855f7' },
           ].map((stat) => (
@@ -139,10 +157,15 @@ const ClubDetailPage = () => {
         Комп'ютери клубу
       </Typography>
 
+      {computers.length === 0 && (
+        <Typography color="text.secondary">У цьому клубі ще немає комп'ютерів</Typography>
+      )}
+
       <Grid container spacing={2}>
         {computers.map((computer) => {
-          const statusCfg = STATUS_CONFIG[computer.status] || STATUS_CONFIG.free
-          const canBook = computer.is_active && computer.status === 'free'
+          const status = computer.is_active ? 'free' : 'maintenance'
+          const statusCfg = STATUS_CONFIG[status]
+          const canBook = computer.is_active
 
           return (
             <Grid item xs={12} sm={6} md={4} lg={3} key={computer.id}>

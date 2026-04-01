@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -10,6 +10,7 @@ import {
   TextField,
   Divider,
   Chip,
+  CircularProgress,
 } from '@mui/material'
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -17,40 +18,50 @@ import ComputerIcon from '@mui/icons-material/Computer'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import EventAvailableIcon from '@mui/icons-material/EventAvailable'
-import { MOCK_COMPUTERS, MOCK_CLUBS } from '../mocks/data'
+import { getComputer, checkAvailability } from '../api/computers'
+import { getClub } from '../api/clubs'
+import { createBooking } from '../api/bookings'
+
+const STATUS_COLORS = {
+  free:        { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  label: 'Вільний' },
+  busy:        { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   label: 'Зайнятий' },
+  maintenance: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', label: 'Тех. огляд' },
+}
 
 const ComputerDetailPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
 
+  const [computer, setComputer] = useState(null)
+  const [club, setClub] = useState(null)
+  const [pageLoading, setPageLoading] = useState(true)
+  const [pageError, setPageError] = useState('')
+
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [availabilityResult, setAvailabilityResult] = useState(null)
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [bookingError, setBookingError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [booking, setBooking] = useState(false)
 
-  // Find computer in mock data
-  const computer = Object.values(MOCK_COMPUTERS)
-    .flat()
-    .find((c) => c.id === Number(id))
+  useEffect(() => {
+    getComputer(id)
+      .then(async (comp) => {
+        setComputer(comp)
+        try {
+          const clubData = await getClub(comp.club_id)
+          setClub(clubData)
+        } catch {
+          // club info is optional for display
+        }
+      })
+      .catch(() => setPageError("Комп'ютер не знайдено"))
+      .finally(() => setPageLoading(false))
+  }, [id])
 
-  const club = computer ? MOCK_CLUBS.find((cl) => cl.id === computer.club_id) : null
-
-  if (!computer) {
-    return <Alert severity="error">Комп'ютер не знайдено</Alert>
-  }
-
-  const canBook = computer.is_active && computer.status === 'free'
-
-  const STATUS_COLORS = {
-    free:        { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  label: 'Вільний' },
-    busy:        { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   label: 'Зайнятий' },
-    maintenance: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', label: 'Тех. огляд' },
-  }
-  const statusCfg = STATUS_COLORS[computer.status] || STATUS_COLORS.free
-
-  const handleCheckAvailability = (e) => {
+  const handleCheckAvailability = async (e) => {
     e.preventDefault()
     setAvailabilityResult(null)
     setBookingError('')
@@ -61,19 +72,51 @@ const ComputerDetailPage = () => {
       setBookingError('Час завершення має бути пізніше за час початку')
       return
     }
-    // Mock check — вільний якщо комп'ютер free
-    setTimeout(() => {
-      setAvailabilityResult({ available: canBook })
-    }, 400)
+
+    setChecking(true)
+    try {
+      const result = await checkAvailability(id, startTime, endTime)
+      setAvailabilityResult(result)
+    } catch {
+      setBookingError('Помилка перевірки доступності')
+    } finally {
+      setChecking(false)
+    }
   }
 
-  const handleBook = () => {
+  const handleBook = async () => {
     setBookingError('')
-    // Mock booking
-    setTimeout(() => {
+    setBooking(true)
+    try {
+      await createBooking(Number(id), startTime, endTime)
       setBookingSuccess(true)
-    }, 500)
+      setAvailabilityResult(null)
+    } catch (e) {
+      const detail = e.response?.data?.detail || ''
+      if (e.response?.status === 409 || detail.toLowerCase().includes('already booked')) {
+        setBookingError('Цей час вже зайнятий іншим користувачем. Оберіть інший час.')
+      } else {
+        setBookingError(detail || 'Помилка при бронюванні')
+      }
+    } finally {
+      setBooking(false)
+    }
   }
+
+  if (pageLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress sx={{ color: '#a855f7' }} />
+      </Box>
+    )
+  }
+
+  if (pageError || !computer) {
+    return <Alert severity="error">{pageError || "Комп'ютер не знайдено"}</Alert>
+  }
+
+  const canBook = computer.is_active
+  const statusCfg = canBook ? STATUS_COLORS.free : STATUS_COLORS.maintenance
 
   return (
     <Box>
@@ -217,7 +260,11 @@ const ComputerDetailPage = () => {
             label="Час початку"
             type="datetime-local"
             value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
+            onChange={(e) => {
+              setStartTime(e.target.value)
+              setAvailabilityResult(null)
+              setBookingSuccess(false)
+            }}
             required
             disabled={!canBook}
             sx={{ mb: 2 }}
@@ -228,7 +275,11 @@ const ComputerDetailPage = () => {
             label="Час завершення"
             type="datetime-local"
             value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
+            onChange={(e) => {
+              setEndTime(e.target.value)
+              setAvailabilityResult(null)
+              setBookingSuccess(false)
+            }}
             required
             disabled={!canBook}
             sx={{ mb: 2 }}
@@ -238,10 +289,11 @@ const ComputerDetailPage = () => {
             type="submit"
             variant="outlined"
             fullWidth
-            disabled={!canBook}
+            disabled={!canBook || checking}
             sx={{ mb: 2 }}
+            startIcon={checking ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            Перевірити доступність
+            {checking ? 'Перевірка...' : 'Перевірити доступність'}
           </Button>
         </Box>
 
@@ -253,12 +305,12 @@ const ComputerDetailPage = () => {
               mb: 2,
               ...(availabilityResult.available
                 ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }
-                : { bgcolor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }),
+                : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }),
             }}
           >
             {availabilityResult.available
-              ? "Комп'ютер доступний! Можна бронювати."
-              : "Комп'ютер вже зайнятий на цей час"}
+              ? "Комп'ютер вільний на обраний час!"
+              : "Цей час вже зайнятий. Оберіть інший час."}
           </Alert>
         )}
 
@@ -283,9 +335,11 @@ const ComputerDetailPage = () => {
             fullWidth
             size="large"
             onClick={handleBook}
+            disabled={booking}
+            startIcon={booking ? <CircularProgress size={16} color="inherit" /> : null}
             sx={{ mt: 1 }}
           >
-            Забронювати
+            {booking ? 'Бронювання...' : 'Забронювати'}
           </Button>
         )}
       </Paper>

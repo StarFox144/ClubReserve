@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -10,13 +10,14 @@ import {
   Chip,
   Grid,
   Divider,
+  CircularProgress,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import EventIcon from '@mui/icons-material/Event'
 import ComputerIcon from '@mui/icons-material/Computer'
 import CancelIcon from '@mui/icons-material/Cancel'
 import StorefrontIcon from '@mui/icons-material/Storefront'
-import { MOCK_BOOKINGS } from '../mocks/data'
+import { getMyBookings, cancelBooking } from '../api/bookings'
 
 const STATUS_CONFIG = {
   active:    { label: 'Активне',    color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)' },
@@ -39,16 +40,38 @@ const getDuration = (start, end) => {
 
 const BookingsPage = () => {
   const navigate = useNavigate()
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS)
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const handleCancel = (id) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b))
-    )
+  useEffect(() => {
+    getMyBookings()
+      .then((data) => setBookings(data))
+      .catch(() => setError('Не вдалося завантажити бронювання'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleCancel = async (id) => {
+    try {
+      await cancelBooking(id)
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b))
+      )
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Помилка при скасуванні')
+    }
   }
 
   const activeBookings = bookings.filter((b) => b.status === 'active')
   const archiveBookings = bookings.filter((b) => b.status !== 'active')
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress sx={{ color: '#a855f7' }} />
+      </Box>
+    )
+  }
 
   return (
     <Box>
@@ -90,6 +113,12 @@ const BookingsPage = () => {
           ))}
         </Box>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
 
       {bookings.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 10 }}>
@@ -164,7 +193,7 @@ const BookingCard = ({ booking, onCancel }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <ComputerIcon sx={{ fontSize: 16, color: cfg.color }} />
           <Typography variant="subtitle2" fontWeight={700} sx={{ color: cfg.color }}>
-            {booking.computer_name}
+            {booking.computer_name ?? `PC #${booking.computer_id}`}
           </Typography>
         </Box>
         <Chip
@@ -181,12 +210,14 @@ const BookingCard = ({ booking, onCancel }) => {
       </Box>
 
       <CardContent sx={{ flexGrow: 1, py: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-          <StorefrontIcon sx={{ fontSize: 14, color: '#a855f7' }} />
-          <Typography variant="body2" fontWeight={600} color="text.primary">
-            {booking.club_name}
-          </Typography>
-        </Box>
+        {booking.club_name && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+            <StorefrontIcon sx={{ fontSize: 14, color: '#a855f7' }} />
+            <Typography variant="body2" fontWeight={600} color="text.primary">
+              {booking.club_name}
+            </Typography>
+          </Box>
+        )}
 
         <Divider sx={{ mb: 1.5 }} />
 
