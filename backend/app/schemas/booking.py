@@ -11,13 +11,14 @@ class BookingBase(BaseModel):
 
 
 class BookingCreate(BookingBase):
-    pass
+    promo_code: Optional[str] = None
 
 
 class BookingResponse(BookingBase):
     id: int
     user_id: int
     status: str
+    promo_code: Optional[str] = None
     created_at: datetime
     computer_name: Optional[str] = None
     club_name: Optional[str] = None
@@ -36,12 +37,9 @@ class BookingResponse(BookingBase):
                 'start_time': obj.start_time,
                 'end_time': obj.end_time,
                 'status': obj.status,
+                'promo_code': obj.promo_code,
                 'created_at': obj.created_at,
                 'computer_name': computer.name if computer else None,
                 'club_name': computer.club.name if (computer and computer.club) else None,
             }
         return obj
-
-
-class BookingCancel(BaseModel):
-    booking_id: int

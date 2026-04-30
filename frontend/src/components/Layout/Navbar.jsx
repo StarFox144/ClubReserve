@@ -1,38 +1,35 @@
 import { useState } from 'react'
 import {
   AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  IconButton,
-  Box,
   Avatar,
+  Box,
+  Button,
+  Divider,
+  IconButton,
   Menu,
   MenuItem,
-  Divider,
+  Toolbar,
+  Tooltip,
+  Typography,
 } from '@mui/material'
 import ComputerIcon from '@mui/icons-material/Computer'
-import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import LightModeIcon from '@mui/icons-material/LightMode'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useThemeMode } from '../../contexts/ThemeContext'
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth()
+  const { mode, toggleTheme } = useThemeMode()
   const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState(null)
 
-  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget)
+  const handleMenuOpen = (e) => setAnchorEl(e.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
-
-  const handleLogout = () => {
-    handleMenuClose()
-    logout()
-    navigate('/')
-  }
-
-  const handleProfile = () => {
-    handleMenuClose()
-    navigate('/profile')
-  }
+  const handleLogout = () => { handleMenuClose(); logout(); navigate('/') }
+  const handleProfile = () => { handleMenuClose(); navigate('/profile') }
 
   return (
     <AppBar position="sticky" elevation={0}>
@@ -46,7 +43,7 @@ const Navbar = () => {
             sx={{
               textDecoration: 'none',
               fontWeight: 800,
-              background: 'linear-gradient(135deg, #e2e8f0, #a855f7)',
+              background: 'linear-gradient(135deg,#a855f7,#818cf8)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -61,10 +58,7 @@ const Navbar = () => {
           <Button
             component={RouterLink}
             to="/clubs"
-            sx={{
-              color: 'text.secondary',
-              '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' },
-            }}
+            sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' } }}
           >
             Клуби
           </Button>
@@ -72,17 +66,30 @@ const Navbar = () => {
             <Button
               component={RouterLink}
               to="/bookings"
-              sx={{
-                color: 'text.secondary',
-                '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' },
-              }}
+              sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' } }}
             >
               Мої бронювання
+            </Button>
+          )}
+          {user?.is_admin && (
+            <Button
+              component={RouterLink}
+              to="/admin"
+              startIcon={<AdminPanelSettingsIcon />}
+              sx={{ color: '#a855f7', '&:hover': { bgcolor: 'rgba(147,51,234,0.08)' } }}
+            >
+              Адмін
             </Button>
           )}
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title={mode === 'dark' ? 'Світла тема' : 'Темна тема'}>
+            <IconButton onClick={toggleTheme} size="small" sx={{ color: 'text.secondary' }}>
+              {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+
           {isAuthenticated ? (
             <>
               <Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
@@ -91,10 +98,8 @@ const Navbar = () => {
               <IconButton onClick={handleMenuOpen} size="small">
                 <Avatar
                   sx={{
-                    width: 32,
-                    height: 32,
-                    fontSize: 14,
-                    background: 'linear-gradient(135deg, #7c3aed, #9333ea)',
+                    width: 32, height: 32, fontSize: 14,
+                    background: 'linear-gradient(135deg,#7c3aed,#9333ea)',
                     boxShadow: '0 0 10px rgba(147,51,234,0.5)',
                   }}
                 >
@@ -112,20 +117,11 @@ const Navbar = () => {
               <Button
                 component={RouterLink}
                 to="/login"
-                sx={{
-                  color: 'text.secondary',
-                  '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' },
-                }}
+                sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7', bgcolor: 'rgba(147,51,234,0.08)' } }}
               >
                 Увійти
               </Button>
-              <Button
-                variant="contained"
-                component={RouterLink}
-                to="/register"
-                size="small"
-                sx={{ px: 2 }}
-              >
+              <Button variant="contained" component={RouterLink} to="/register" size="small" sx={{ px: 2 }}>
                 Реєстрація
               </Button>
             </>
