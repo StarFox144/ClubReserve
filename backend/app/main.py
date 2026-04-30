@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, bookings, clubs, computers, users
+from app.routers import admin_stats, auth, bookings, clubs, computers, promos, reviews, users
 
 app = FastAPI(
     title="ClubReserve API",
@@ -22,6 +22,9 @@ app.include_router(users.router)
 app.include_router(clubs.router)
 app.include_router(computers.router)
 app.include_router(bookings.router)
+app.include_router(reviews.router)
+app.include_router(promos.router)
+app.include_router(admin_stats.router)
 
 
 @app.get("/")

@@ -27,3 +27,9 @@ class ClubResponse(ClubBase):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ClubWithStats(ClubResponse):
+    avg_rating: Optional[float] = None
+    review_count: int = 0
+    min_price: Optional[float] = None

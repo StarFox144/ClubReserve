@@ -15,6 +15,7 @@ class Booking(Base):
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     status = Column(String, default="active")
+    promo_code = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="bookings")

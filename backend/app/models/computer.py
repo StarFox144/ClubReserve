@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -12,5 +12,6 @@ class Computer(Base):
     name = Column(String, nullable=False)
     description = Column(String)
     is_active = Column(Boolean, default=True)
+    price_per_hour = Column(Numeric(10, 2), nullable=True)
 
     club = relationship("Club", backref="computers")
