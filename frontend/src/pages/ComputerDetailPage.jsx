@@ -7,6 +7,7 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import dayjs from 'dayjs'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 import ComputerIcon from '@mui/icons-material/Computer'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -60,6 +61,7 @@ const ComputerDetailPage = () => {
   const [computer, setComputer] = useState(null)
   const [club, setClub] = useState(null)
   const [pageLoading, setPageLoading] = useState(true)
+  usePageTitle(computer?.name || "Комп'ютер")
   const [pageError, setPageError] = useState('')
 
   const [startTime, setStartTime] = useState(null)

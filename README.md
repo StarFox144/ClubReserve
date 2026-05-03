@@ -1,133 +1,120 @@
-# ClubReserve
+﻿# ClubReserve
 
-Веб-система для онлайн-бронювання комп'ютерів у комп'ютерних клубах.
+Система бронювання комп'ютерних клубів. Дозволяє переглядати клуби, бачити реальну зайнятість комп'ютерів та бронювати місця онлайн.
 
-## Стек технологій
+## Стек
 
-**Backend**
-- [FastAPI](https://fastapi.tiangolo.com/) — веб-фреймворк
-- [PostgreSQL](https://www.postgresql.org/) — база даних
-- [SQLAlchemy](https://www.sqlalchemy.org/) + [Alembic](https://alembic.sqlalchemy.org/) — ORM та міграції
-- [JWT](https://jwt.io/) — автентифікація (access + refresh токени)
+| Шар | Технологія |
+|-----|------------|
+| Frontend | React 18 + Vite, Material UI v6 |
+| Backend | FastAPI (Python 3.11), SQLAlchemy 2, Alembic |
+| База даних | PostgreSQL 16 |
+| Інфраструктура | Docker Compose |
 
-**Frontend**
-- [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
-- [Material UI](https://mui.com/) — UI компоненти
-- [TanStack Query](https://tanstack.com/query) — кешування запитів
-- [React Router](https://reactrouter.com/) — маршрутизація
+## Функціонал
 
-**Інфраструктура**
-- [Docker](https://www.docker.com/) + Docker Compose
+- Перегляд клубів з фільтрами (рейтинг, ціна), сортуванням та пошуком
+- Реальний статус зайнятості комп'ютерів (оновлення кожні 30 сек)
+- Бронювання через DateTimePicker з кнопками швидкої тривалості
+- Промо-коди зі знижками при бронюванні
+- QR-код бронювання + завантаження PDF-квитанції
+- Продовження активного бронювання (+1/+2 год)
+- Відгуки та рейтинги клубів
+- Профіль з рівнями лояльності та бейджами
+- Адмін-панель: статистика, керування клубами/комп'ютерами/юзерами/промо-кодами
+- Глобальний пошук у навбарі
+- Темна/світла тема
+- Експорт бронювань у CSV
+- PWA (manifest + іконки)
 
----
-
-## Запуск проєкту
-
-### Варіант 1 — Docker (рекомендовано)
-
-> Потрібен встановлений [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+## Запуск
 
 ```bash
-# Клонувати репозиторій
-git clone <url>
-cd clubreserve
-
-# Запустити всі сервіси
-docker-compose up --build
+docker compose up --build
 ```
 
-Після запуску відкрити в браузері:
-- **Сайт** → http://localhost:3000
-- **API документація** → http://localhost:8000/docs
+Після запуску:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- Swagger docs: http://localhost:8000/docs
 
-Створити таблиці в БД (один раз):
+### Перша ініціалізація
+
 ```bash
-docker-compose exec backend alembic revision --autogenerate -m "initial"
-docker-compose exec backend alembic upgrade head
+# Застосувати міграції
+docker compose exec backend alembic upgrade head
+
+# Завантажити тестові дані (3 клуби, комп'ютери з цінами)
+docker compose exec backend python seed.py
 ```
 
-### Варіант 2 — Локально
-
-**Вимоги:** Python 3.11+, Node.js 20+, PostgreSQL
-
-**Backend:**
-```bash
-cd backend
-cp .env.example .env
-# Відредагувати .env — вказати DATABASE_URL
-
-pip install -r requirements.txt
-
-alembic revision --autogenerate -m "initial"
-alembic upgrade head
-
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend** (окремий термінал):
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## Структура проєкту
+## Структура проекту
 
 ```
-clubreserve/
+ClubReserve/
 ├── backend/
 │   ├── app/
-│   │   ├── models/        # SQLAlchemy моделі (User, Club, Computer, Booking)
-│   │   ├── schemas/       # Pydantic схеми
-│   │   ├── routers/       # API ендпоінти
-│   │   ├── services/      # Бізнес-логіка (JWT, bcrypt, overlap-check)
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── main.py
-│   ├── alembic/           # Міграції БД
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   ├── models/          # SQLAlchemy моделі
+│   │   ├── routers/         # FastAPI ендпоінти
+│   │   ├── schemas/         # Pydantic схеми
+│   │   └── services/        # Авторизація, бізнес-логіка
+│   ├── alembic/versions/    # Міграції БД
+│   ├── seed.py              # Тестові дані
+│   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── api/           # Axios клієнт та запити
-│   │   ├── components/    # Layout, Navbar
-│   │   ├── contexts/      # AuthContext
-│   │   ├── mocks/         # Mock дані для розробки
-│   │   └── pages/         # Сторінки додатку
-│   ├── package.json
-│   └── vite.config.js
+│   │   ├── api/             # Axios-функції для кожного ресурсу
+│   │   ├── components/      # Layout, Navbar, ParticleCanvas, NavProgress
+│   │   ├── contexts/        # Auth, Theme, Toast
+│   │   ├── hooks/           # usePageTitle
+│   │   └── pages/           # Всі сторінки
+│   └── public/              # manifest.json, icon.svg
 └── docker-compose.yml
 ```
-
----
 
 ## API ендпоінти
 
 | Метод | URL | Опис |
 |-------|-----|------|
 | POST | `/auth/register` | Реєстрація |
-| POST | `/auth/login` | Вхід, отримання JWT |
-| POST | `/auth/refresh` | Оновлення токену |
-| GET | `/users/me` | Профіль поточного користувача |
-| GET | `/clubs` | Список клубів |
-| GET | `/clubs/{id}` | Деталі клубу |
-| GET | `/computers` | Список комп'ютерів (фільтр по `club_id`) |
+| POST | `/auth/login` | Вхід (JWT) |
+| GET | `/clubs` | Список клубів з рейтингом та цінами |
+| GET | `/clubs/{id}/busy-computers` | Зайняті комп'ютери зараз |
+| GET | `/computers?club_id=` | Комп'ютери клубу |
 | GET | `/computers/{id}/availability` | Перевірка доступності |
-| GET | `/bookings` | Мої бронювання |
-| POST | `/bookings` | Створити бронювання |
-| DELETE | `/bookings/{id}` | Скасувати бронювання |
+| GET/POST | `/bookings` | Мої бронювання / створити |
+| POST | `/bookings/{id}/extend` | Продовжити бронювання |
+| DELETE | `/bookings/{id}` | Скасувати |
+| GET/POST | `/clubs/{id}/reviews` | Відгуки клубу |
+| POST | `/promos/validate` | Перевірити промо-код |
+| GET | `/search?q=` | Глобальний пошук |
+| GET | `/admin/stats` | Статистика для адміна |
+| GET | `/users/me/stats` | Статистика профілю |
 
-Повна документація: http://localhost:8000/docs
+## Змінні середовища (backend)
 
----
+| Змінна | За замовчуванням | Опис |
+|--------|-----------------|------|
+| `DATABASE_URL` | `postgresql://postgres:password@db:5432/clubreserve` | Рядок підключення до БД |
+| `SECRET_KEY` | `dev-secret-key-change-in-production` | Ключ для JWT |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Час життя access токена |
+| `TZ` | `Europe/Kyiv` | Timezone контейнера |
 
-## Функціонал
+## Міграції
 
-- Реєстрація та авторизація користувачів
-- Перегляд клубів з пошуком та фільтрацією по місту
-- Перевірка доступності комп'ютерів по часовому інтервалу
-- Онлайн-бронювання з перевіркою перетину часових слотів
-- Особистий кабінет з історією бронювань
-- Скасування активних бронювань
+```bash
+# Застосувати всі
+docker compose exec backend alembic upgrade head
+
+# Відкатити одну
+docker compose exec backend alembic downgrade -1
+
+# Створити нову
+docker compose exec backend alembic revision --autogenerate -m "назва"
+```
+
+## Технічні нотатки
+
+- Часові мітки зберігаються як naive datetime у київському часі. Порівняння в бекенді виконується через `datetime.now(ZoneInfo('Europe/Kyiv'))`.
+- HMR у Windows Docker: у `vite.config.js` увімкнено `watch: { usePolling: true }`.
+- Статус бронювань оновлюється автоматично при кожному запиті `GET /bookings`.

@@ -14,4 +14,5 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    loyalty_points = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

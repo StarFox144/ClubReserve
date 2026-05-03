@@ -1,9 +1,11 @@
 import { Box, Container, Typography } from '@mui/material'
 import Navbar from './Navbar'
+import NavProgress from '../NavProgress'
 
 const Layout = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <NavProgress />
       <Navbar />
       <Box component="main" sx={{ flexGrow: 1, py: 4 }}>
         <Container maxWidth="lg">

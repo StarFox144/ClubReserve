@@ -1,3 +1,4 @@
+/* ── RGB animations ── */
 @keyframes rgbBorder {
   0%   { border-color: #9333ea; box-shadow: 0 0 8px #9333ea, 0 0 20px #9333ea44; }
   16%  { border-color: #6366f1; box-shadow: 0 0 8px #6366f1, 0 0 20px #6366f144; }
@@ -7,7 +8,6 @@
   83%  { border-color: #ef4444; box-shadow: 0 0 8px #ef4444, 0 0 20px #ef444444; }
   100% { border-color: #9333ea; box-shadow: 0 0 8px #9333ea, 0 0 20px #9333ea44; }
 }
-
 @keyframes rgbGlow {
   0%   { box-shadow: 0 0 15px #9333ea66, 0 0 40px #9333ea22; }
   16%  { box-shadow: 0 0 15px #6366f166, 0 0 40px #6366f122; }
@@ -17,7 +17,6 @@
   83%  { box-shadow: 0 0 15px #ef444466, 0 0 40px #ef444422; }
   100% { box-shadow: 0 0 15px #9333ea66, 0 0 40px #9333ea22; }
 }
-
 @keyframes rgbText {
   0%   { color: #9333ea; }
   16%  { color: #6366f1; }
@@ -27,40 +26,84 @@
   83%  { color: #ef4444; }
   100% { color: #9333ea; }
 }
-
 @keyframes rgbLine {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-.rgb-border {
-  border: 1px solid #9333ea;
-  animation: rgbBorder 4s linear infinite;
+/* ── Motion animations ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-14px) rotate(2deg); }
+  66%       { transform: translateY(-6px) rotate(-1deg); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-20px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes neon-pulse {
+  0%, 100% { text-shadow: 0 0 7px #a855f7, 0 0 10px #a855f7, 0 0 21px #a855f7; }
+  50%       { text-shadow: 0 0 14px #a855f7, 0 0 30px #a855f7, 0 0 60px #a855f7; }
+}
+@keyframes scan-line {
+  0%   { top: -5%; }
+  100% { top: 105%; }
+}
+@keyframes counter-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.rgb-glow {
-  animation: rgbGlow 4s linear infinite;
+/* ── Utility classes ── */
+.rgb-border  { border: 1px solid #9333ea; animation: rgbBorder 4s linear infinite; }
+.rgb-glow    { animation: rgbGlow 4s linear infinite; }
+.rgb-text    { animation: rgbText 4s linear infinite; }
+.float       { animation: float 4s ease-in-out infinite; }
+.float-slow  { animation: float-slow 6s ease-in-out infinite; }
+.pulse-glow  { animation: pulse-glow 2.5s ease-in-out infinite; }
+.slide-in-up { animation: slide-in-up 0.6s ease-out forwards; }
+.fade-in     { animation: fade-in 0.8s ease-out forwards; }
+.shimmer-text {
+  background: linear-gradient(90deg, #a855f7 0%, #e2e8f0 40%, #818cf8 60%, #a855f7 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
 }
+.neon-text { animation: neon-pulse 2s ease-in-out infinite; }
 
-.rgb-text {
-  animation: rgbText 4s linear infinite;
-}
+/* ── Scrollbar ── */
+* { scrollbar-width: thin; scrollbar-color: #7c3aed #1a1a2e; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1a2e; }
+::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a855f7; }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #7c3aed #1a1a2e;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1a1a2e;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #7c3aed;
-  border-radius: 3px;
-}
+/* ── Selection ── */
+::selection { background: rgba(147,51,234,0.35); color: #e2e8f0; }

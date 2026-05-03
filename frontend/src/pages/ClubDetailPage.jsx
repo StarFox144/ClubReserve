@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Alert, Box, Breadcrumbs, Button, Card, CardActions, CardContent,
-  Chip, CircularProgress, Dialog, DialogContent, DialogTitle,
+  Chip, CircularProgress, Collapse, Dialog, DialogContent, DialogTitle,
   Divider, Grid, IconButton, Link, Rating, TextField, Typography,
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
@@ -16,12 +16,27 @@ import BlockIcon from '@mui/icons-material/Block'
 import StarIcon from '@mui/icons-material/Star'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CloseIcon from '@mui/icons-material/Close'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { getClub, getBusyComputers } from '../api/clubs'
+
+const parseSpecs = (desc) => {
+  if (!desc) return []
+  return desc.split(' · ').map((s) => {
+    const t = s.trim()
+    if (/intel|ryzen/i.test(t))  return { label: t, color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.3)'  }
+    if (/rtx|gtx|rx\s|arc/i.test(t)) return { label: t, color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.3)'  }
+    if (/gb ram/i.test(t))        return { label: t, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)'  }
+    if (/гц/i.test(t))            return { label: t, color: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)'  }
+    return                               { label: t, color: '#9ca3af', bg: 'rgba(156,163,175,0.08)', border: 'rgba(156,163,175,0.2)' }
+  })
+}
 import { getComputers, checkAvailability } from '../api/computers'
 import { getReviews, createReview } from '../api/reviews'
 import { createBooking } from '../api/bookings'
+import { validatePromo } from '../api/promos'
 
 const STATUS_CONFIG = {
   free:        { label: 'Вільний',    color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
@@ -56,6 +71,7 @@ const ClubDetailPage = () => {
   const [club, setClub] = useState(null)
   const [computers, setComputers] = useState([])
   const [busyIds, setBusyIds] = useState(new Set())
+  usePageTitle(club?.name || 'Клуб')
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,6 +90,10 @@ const ClubDetailPage = () => {
   const [qbError, setQbError] = useState('')
   const [qbChecking, setQbChecking] = useState(false)
   const [qbBooking, setQbBooking] = useState(false)
+  const [qbShowPromo, setQbShowPromo] = useState(false)
+  const [qbPromoCode, setQbPromoCode] = useState('')
+  const [qbPromoResult, setQbPromoResult] = useState(null)
+  const [qbPromoValidating, setQbPromoValidating] = useState(false)
 
   const fetchBusy = useCallback(() => {
     getBusyComputers(id)
@@ -118,8 +138,8 @@ const ClubDetailPage = () => {
   const openQuickBook = (computer) => {
     setQuickTarget(computer)
     setQbStart(null); setQbEnd(null)
-    setQbAvailability(null); setQbSuccess(false)
-    setQbError('')
+    setQbAvailability(null); setQbSuccess(false); setQbError('')
+    setQbShowPromo(false); setQbPromoCode(''); setQbPromoResult(null)
   }
   const closeQuickBook = () => setQuickTarget(null)
 
@@ -128,6 +148,15 @@ const ClubDetailPage = () => {
     if (val?.isValid()) setQbEnd(val.add(1, 'hour'))
     else setQbEnd(null)
     setQbAvailability(null); setQbSuccess(false); setQbError('')
+  }
+
+  const handleQbValidatePromo = async () => {
+    if (!qbPromoCode.trim()) return
+    setQbPromoValidating(true); setQbPromoResult(null)
+    try {
+      setQbPromoResult(await validatePromo(qbPromoCode.trim()))
+    } catch { setQbPromoResult({ valid: false, message: 'Помилка перевірки' }) }
+    finally { setQbPromoValidating(false) }
   }
 
   const handleQbCheck = async () => {
@@ -143,7 +172,8 @@ const ClubDetailPage = () => {
   const handleQbBook = async () => {
     setQbError(''); setQbBooking(true)
     try {
-      await createBooking(quickTarget.id, toApiStr(qbStart), toApiStr(qbEnd))
+      const appliedPromo = qbPromoResult?.valid ? qbPromoCode.trim().toUpperCase() : null
+      await createBooking(quickTarget.id, toApiStr(qbStart), toApiStr(qbEnd), appliedPromo)
       setQbSuccess(true); setQbAvailability(null)
       fetchBusy()
     } catch (e) {
@@ -170,6 +200,10 @@ const ClubDetailPage = () => {
     : null
   const qbEstCost = qbTimeValid && quickTarget?.price_per_hour
     ? (qbDurationMins / 60 * Number(quickTarget.price_per_hour)).toFixed(2)
+    : null
+  const qbDiscountPct = qbPromoResult?.valid ? qbPromoResult.discount_percent : 0
+  const qbDiscountedCost = qbEstCost && qbDiscountPct > 0
+    ? (parseFloat(qbEstCost) * (1 - qbDiscountPct / 100)).toFixed(2)
     : null
 
   return (
@@ -253,9 +287,22 @@ const ClubDetailPage = () => {
                   <Chip icon={cfg.icon} label={cfg.label} size="small" sx={{ bgcolor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontSize: '0.7rem', height: 22, '& .MuiChip-icon': { color: cfg.color } }} />
                 </Box>
                 <CardContent sx={{ flexGrow: 1, py: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{computer.description}</Typography>
+                  {/* Spec badges */}
+                  {computer.description && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                      {parseSpecs(computer.description).map((spec, i) => (
+                        <Box key={i} sx={{
+                          px: 1, py: 0.2, borderRadius: 1, fontSize: '0.67rem', fontWeight: 600,
+                          color: spec.color, bgcolor: spec.bg, border: `1px solid ${spec.border}`,
+                          lineHeight: 1.6, whiteSpace: 'nowrap',
+                        }}>
+                          {spec.label}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                   {computer.price_per_hour && (
-                    <Typography variant="body2" fontWeight={700} sx={{ color: '#a855f7', mt: 1, fontSize: '0.85rem' }}>
+                    <Typography variant="body2" fontWeight={700} sx={{ color: '#a855f7', fontSize: '0.85rem' }}>
                       ₴{Number(computer.price_per_hour).toFixed(0)}/год
                     </Typography>
                   )}
@@ -383,9 +430,50 @@ const ClubDetailPage = () => {
                 slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
 
               {qbTimeValid && (
-                <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(147,51,234,0.06)', border: '1px solid rgba(147,51,234,0.2)', display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(147,51,234,0.06)', border: '1px solid rgba(147,51,234,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body2" color="text.secondary">{qbDurationLabel}</Typography>
-                  {qbEstCost && <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>≈ ₴{qbEstCost}</Typography>}
+                  {qbEstCost && (
+                    <Box sx={{ textAlign: 'right' }}>
+                      {qbDiscountPct > 0 ? (
+                        <>
+                          <Typography variant="caption" color="text.disabled" sx={{ textDecoration: 'line-through', display: 'block' }}>₴{qbEstCost}</Typography>
+                          <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>₴{qbDiscountedCost} <Typography component="span" variant="caption" sx={{ color: '#10b981' }}>-{qbDiscountPct}%</Typography></Typography>
+                        </>
+                      ) : (
+                        <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>≈ ₴{qbEstCost}</Typography>
+                      )}
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {qbTimeValid && (
+                <Box>
+                  <Button size="small" startIcon={<LocalOfferIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => setQbShowPromo((v) => !v)}
+                    sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' }, p: 0, fontSize: '0.8rem' }}>
+                    {qbShowPromo ? 'Приховати промо-код' : 'Є промо-код?'}
+                  </Button>
+                  <Collapse in={qbShowPromo}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mt: 1 }}>
+                      <TextField size="small" label="Промо-код" value={qbPromoCode}
+                        onChange={(e) => { setQbPromoCode(e.target.value.toUpperCase()); setQbPromoResult(null) }}
+                        sx={{ flex: 1, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: 'rgba(147,51,234,0.35)' }, '&:hover fieldset': { borderColor: '#9333ea' } } }}
+                      />
+                      <Button variant="outlined" size="small" onClick={handleQbValidatePromo}
+                        disabled={qbPromoValidating || !qbPromoCode.trim()}
+                        sx={{ height: 40, flexShrink: 0, borderColor: 'rgba(147,51,234,0.4)', color: '#a855f7' }}>
+                        {qbPromoValidating ? <CircularProgress size={14} /> : 'OK'}
+                      </Button>
+                    </Box>
+                    {qbPromoResult && (
+                      <Alert severity={qbPromoResult.valid ? 'success' : 'error'} sx={{ mt: 1, py: 0.5,
+                        ...(qbPromoResult.valid ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' } : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' })
+                      }}>
+                        {qbPromoResult.valid ? `Знижка ${qbPromoResult.discount_percent}% застосована!` : qbPromoResult.message || 'Невірний код'}
+                      </Alert>
+                    )}
+                  </Collapse>
                 </Box>
               )}
 
@@ -408,7 +496,7 @@ const ClubDetailPage = () => {
               {isAuthenticated && qbAvailability?.available && (
                 <Button variant="contained" fullWidth size="large" onClick={handleQbBook} disabled={qbBooking}
                   startIcon={qbBooking ? <CircularProgress size={14} color="inherit" /> : null}>
-                  {qbBooking ? 'Бронювання...' : 'Забронювати'}
+                  {qbBooking ? 'Бронювання...' : `Забронювати${qbDiscountedCost ? ` · ₴${qbDiscountedCost}` : qbEstCost ? ` · ₴${qbEstCost}` : ''}`}
                 </Button>
               )}
             </Box>

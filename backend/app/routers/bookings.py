@@ -1,4 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+_KYIV = ZoneInfo('Europe/Kyiv')
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -16,8 +19,19 @@ from app.services.booking import check_overlap
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
+def _expire_past_bookings(db: Session):
+    """Bulk-complete any active bookings whose end_time has passed."""
+    now = datetime.now(_KYIV).replace(tzinfo=None)
+    db.query(Booking).filter(
+        Booking.status == "active",
+        Booking.end_time < now,
+    ).update({"status": "completed"}, synchronize_session=False)
+    db.commit()
+
+
 @router.get("", response_model=List[BookingResponse])
 def get_my_bookings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _expire_past_bookings(db)
     return (
         db.query(Booking)
         .filter(Booking.user_id == current_user.id)
@@ -62,6 +76,11 @@ def create_booking(
         promo_code=promo_code_str,
     )
     db.add(booking)
+
+    hours = (booking_data.end_time - booking_data.start_time).total_seconds() / 3600
+    points = max(1, int(hours * 10))
+    current_user.loyalty_points = (current_user.loyalty_points or 0) + points
+
     db.commit()
     db.refresh(booking)
     return booking
@@ -74,6 +93,7 @@ def extend_booking(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _expire_past_bookings(db)
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")

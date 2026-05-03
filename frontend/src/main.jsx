@@ -9,11 +9,11 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { AppThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 1000 * 60 },
-  },
+  defaultOptions: { queries: { retry: 1, staleTime: 1000 * 60 } },
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -21,11 +21,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AppThemeProvider>
-          <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="uk">
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </LocalizationProvider>
+          <ToastProvider>
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="uk">
+              <AuthProvider>
+                <ErrorBoundary>
+                  <App />
+                </ErrorBoundary>
+              </AuthProvider>
+            </LocalizationProvider>
+          </ToastProvider>
         </AppThemeProvider>
       </QueryClientProvider>
     </BrowserRouter>
