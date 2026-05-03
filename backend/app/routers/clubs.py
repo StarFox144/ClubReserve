@@ -1,4 +1,7 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+_KYIV = ZoneInfo('Europe/Kyiv')
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -56,7 +59,7 @@ def get_club(club_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{club_id}/busy-computers")
 def get_busy_computers(club_id: int, db: Session = Depends(get_db)):
-    now = datetime.utcnow()
+    now = datetime.now(_KYIV).replace(tzinfo=None)
     rows = (
         db.query(Booking.computer_id)
         .join(Computer, Booking.computer_id == Computer.id)
