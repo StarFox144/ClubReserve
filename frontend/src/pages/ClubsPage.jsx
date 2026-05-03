@@ -1,13 +1,14 @@
 import {
   Alert, Box, Button, Card, CardActions, CardContent, Chip,
-  CircularProgress, FormControl, Grid, InputAdornment, InputLabel,
-  MenuItem, Rating, Select, TextField, Typography,
+  FormControl, Grid, InputAdornment, InputLabel,
+  MenuItem, Rating, Select, Skeleton, TextField, Typography,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import SearchIcon from '@mui/icons-material/Search'
 import StorefrontIcon from '@mui/icons-material/Storefront'
 import SortIcon from '@mui/icons-material/Sort'
+import { usePageTitle } from '../hooks/usePageTitle'
 import FilterAltOffIcon from '@mui/icons-material/FilterAltOff'
 import { useState, useEffect, useMemo } from 'react'
 import { getClubs } from '../api/clubs'
@@ -28,7 +29,45 @@ const MAX_PRICE_OPTIONS = [
   { label: 'до ₴100/год', value: 100 },
 ]
 
+// Circuit board SVG tile (data URI)
+const CIRCUIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+  <line x1="0" y1="15" x2="32" y2="15" stroke="#a855f7" stroke-width="0.8" opacity="0.4"/>
+  <line x1="48" y1="15" x2="80" y2="15" stroke="#a855f7" stroke-width="0.8" opacity="0.4"/>
+  <line x1="0" y1="55" x2="22" y2="55" stroke="#6366f1" stroke-width="0.8" opacity="0.35"/>
+  <line x1="58" y1="55" x2="80" y2="55" stroke="#6366f1" stroke-width="0.8" opacity="0.35"/>
+  <line x1="40" y1="0" x2="40" y2="28" stroke="#818cf8" stroke-width="0.8" opacity="0.35"/>
+  <line x1="40" y1="52" x2="40" y2="80" stroke="#818cf8" stroke-width="0.8" opacity="0.35"/>
+  <line x1="20" y1="28" x2="20" y2="80" stroke="#06b6d4" stroke-width="0.7" opacity="0.25"/>
+  <path d="M0,35 L14,35 L14,55" fill="none" stroke="#a855f7" stroke-width="0.8" opacity="0.3"/>
+  <path d="M62,15 L62,0" fill="none" stroke="#6366f1" stroke-width="0.7" opacity="0.3"/>
+  <path d="M62,35 L80,35" fill="none" stroke="#818cf8" stroke-width="0.7" opacity="0.25"/>
+  <circle cx="40" cy="15" r="2.5" fill="#a855f7" opacity="0.65"/>
+  <circle cx="40" cy="55" r="2" fill="#818cf8" opacity="0.55"/>
+  <circle cx="20" cy="55" r="2.5" fill="#6366f1" opacity="0.6"/>
+  <circle cx="62" cy="15" r="2" fill="#a855f7" opacity="0.45"/>
+  <circle cx="14" cy="35" r="1.5" fill="#06b6d4" opacity="0.55"/>
+  <circle cx="62" cy="55" r="3" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.35"/>
+  <circle cx="20" cy="28" r="2.5" fill="none" stroke="#6366f1" stroke-width="1" opacity="0.3"/>
+</svg>`
+const CIRCUIT_BG = `url("data:image/svg+xml,${encodeURIComponent(CIRCUIT_SVG)}")`
+
+const ClubCardSkeleton = () => (
+  <Card sx={{ height: '100%' }}>
+    <Skeleton variant="rectangular" height={110} />
+    <CardContent>
+      <Skeleton variant="text" width="60%" height={32} sx={{ mb: 1 }} />
+      <Skeleton variant="text" width="80%" />
+      <Skeleton variant="text" width="90%" />
+      <Skeleton variant="text" width="50%" />
+    </CardContent>
+    <CardActions sx={{ px: 2, pb: 2 }}>
+      <Skeleton variant="rounded" width="100%" height={36} />
+    </CardActions>
+  </Card>
+)
+
 const ClubsPage = () => {
+  usePageTitle('Клуби')
   const navigate = useNavigate()
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -66,8 +105,18 @@ const ClubsPage = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress sx={{ color: '#a855f7' }} />
+      <Box>
+        <Skeleton variant="text" width={280} height={48} sx={{ mb: 1 }} />
+        <Skeleton variant="text" width={160} sx={{ mb: 3 }} />
+        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+          <Skeleton variant="rounded" width={320} height={40} />
+          <Skeleton variant="rounded" width={160} height={40} />
+        </Box>
+        <Grid container spacing={3}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}><ClubCardSkeleton /></Grid>
+          ))}
+        </Grid>
       </Box>
     )
   }
@@ -173,7 +222,7 @@ const ClubsPage = () => {
             }}>
               <Box sx={{
                 height: 110,
-                background: CLUB_GRADIENTS[idx % CLUB_GRADIENTS.length],
+                background: `${CIRCUIT_BG} repeat, ${CLUB_GRADIENTS[idx % CLUB_GRADIENTS.length]}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 px: 3, position: 'relative', overflow: 'hidden',
                 '&::after': { content: '""', position: 'absolute', bottom: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(147,51,234,0.1)' },

@@ -62,6 +62,11 @@ def create_booking(
         promo_code=promo_code_str,
     )
     db.add(booking)
+
+    hours = (booking_data.end_time - booking_data.start_time).total_seconds() / 3600
+    points = max(1, int(hours * 10))
+    current_user.loyalty_points = (current_user.loyalty_points or 0) + points
+
     db.commit()
     db.refresh(booking)
     return booking

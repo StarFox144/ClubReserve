@@ -14,6 +14,8 @@ import QrCodeIcon from '@mui/icons-material/QrCode'
 import AddTimeIcon from '@mui/icons-material/MoreTime'
 import CloseIcon from '@mui/icons-material/Close'
 import { getMyBookings, cancelBooking, extendBooking } from '../api/bookings'
+import { usePageTitle } from '../hooks/usePageTitle'
+import DownloadIcon from '@mui/icons-material/Download'
 
 const STATUS_CONFIG = {
   active:    { label: 'Активне',   color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)' },
@@ -36,7 +38,29 @@ const duration = (start, end) => {
   return h > 0 ? `${h} год${min > 0 ? ` ${min} хв` : ''}` : `${min} хв`
 }
 
+const exportCSV = (bookings) => {
+  const rows = [
+    ['ID', 'Клуб', "Комп'ютер", 'Початок', 'Кінець', 'Статус', 'Промо-код'],
+    ...bookings.map((b) => [
+      b.id,
+      b.club_name || '',
+      b.computer_name || `PC #${b.computer_id}`,
+      new Date(b.start_time).toLocaleString('uk-UA'),
+      new Date(b.end_time).toLocaleString('uk-UA'),
+      b.status,
+      b.promo_code || '',
+    ]),
+  ]
+  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'bookings.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
+
 const BookingsPage = () => {
+  usePageTitle('Мої бронювання')
   const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -81,6 +105,14 @@ const BookingsPage = () => {
             </Box>
           ))}
         </Box>
+        {bookings.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+            <Button size="small" startIcon={<DownloadIcon />} onClick={() => exportCSV(filtered)}
+              sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' } }}>
+              Експорт CSV
+            </Button>
+          </Box>
+        )}
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40 }, '& .MuiTabs-indicator': { backgroundColor: '#a855f7' }, '& .Mui-selected': { color: '#a855f7 !important' }, borderBottom: '1px solid rgba(147,51,234,0.2)' }}>
           {TABS.map((t) => <Tab key={t.value} value={t.value} label={`${t.label}${counts[t.value] > 0 ? ` (${counts[t.value]})` : ''}`} />)}
         </Tabs>

@@ -18,7 +18,20 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CloseIcon from '@mui/icons-material/Close'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { getClub, getBusyComputers } from '../api/clubs'
+
+const parseSpecs = (desc) => {
+  if (!desc) return []
+  return desc.split(' · ').map((s) => {
+    const t = s.trim()
+    if (/intel|ryzen/i.test(t))  return { label: t, color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.3)'  }
+    if (/rtx|gtx|rx\s|arc/i.test(t)) return { label: t, color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.3)'  }
+    if (/gb ram/i.test(t))        return { label: t, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)'  }
+    if (/гц/i.test(t))            return { label: t, color: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)'  }
+    return                               { label: t, color: '#9ca3af', bg: 'rgba(156,163,175,0.08)', border: 'rgba(156,163,175,0.2)' }
+  })
+}
 import { getComputers, checkAvailability } from '../api/computers'
 import { getReviews, createReview } from '../api/reviews'
 import { createBooking } from '../api/bookings'
@@ -56,6 +69,7 @@ const ClubDetailPage = () => {
   const [club, setClub] = useState(null)
   const [computers, setComputers] = useState([])
   const [busyIds, setBusyIds] = useState(new Set())
+  usePageTitle(club?.name || 'Клуб')
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -253,9 +267,22 @@ const ClubDetailPage = () => {
                   <Chip icon={cfg.icon} label={cfg.label} size="small" sx={{ bgcolor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontSize: '0.7rem', height: 22, '& .MuiChip-icon': { color: cfg.color } }} />
                 </Box>
                 <CardContent sx={{ flexGrow: 1, py: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{computer.description}</Typography>
+                  {/* Spec badges */}
+                  {computer.description && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                      {parseSpecs(computer.description).map((spec, i) => (
+                        <Box key={i} sx={{
+                          px: 1, py: 0.2, borderRadius: 1, fontSize: '0.67rem', fontWeight: 600,
+                          color: spec.color, bgcolor: spec.bg, border: `1px solid ${spec.border}`,
+                          lineHeight: 1.6, whiteSpace: 'nowrap',
+                        }}>
+                          {spec.label}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                   {computer.price_per_hour && (
-                    <Typography variant="body2" fontWeight={700} sx={{ color: '#a855f7', mt: 1, fontSize: '0.85rem' }}>
+                    <Typography variant="body2" fontWeight={700} sx={{ color: '#a855f7', fontSize: '0.85rem' }}>
                       ₴{Number(computer.price_per_hour).toFixed(0)}/год
                     </Typography>
                   )}

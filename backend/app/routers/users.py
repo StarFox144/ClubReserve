@@ -1,9 +1,14 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.booking import Booking
+from app.models.club import Club
+from app.models.computer import Computer
+from app.models.review import Review
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
 from app.services.auth import get_current_admin_user, get_current_user
@@ -35,6 +40,41 @@ def update_me(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.get("/me/stats")
+def get_my_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.user_id == current_user.id, Booking.status != "cancelled")
+        .all()
+    )
+    total_bookings = len(bookings)
+    total_hours = round(
+        sum((b.end_time - b.start_time).total_seconds() / 3600 for b in bookings), 1
+    )
+    total_reviews = db.query(func.count(Review.id)).filter(Review.user_id == current_user.id).scalar() or 0
+
+    club_counts: dict = {}
+    for b in bookings:
+        comp = db.query(Computer).filter(Computer.id == b.computer_id).first()
+        if comp:
+            club_counts[comp.club_id] = club_counts.get(comp.club_id, 0) + 1
+
+    favorite_club = None
+    if club_counts:
+        fav_id = max(club_counts, key=club_counts.get)
+        club = db.query(Club).filter(Club.id == fav_id).first()
+        if club:
+            favorite_club = club.name
+
+    return {
+        "total_bookings": total_bookings,
+        "total_hours": total_hours,
+        "total_reviews": total_reviews,
+        "loyalty_points": current_user.loyalty_points or 0,
+        "favorite_club": favorite_club,
+    }
 
 
 @router.get("/admin/all", response_model=List[UserResponse])

@@ -1,0 +1,40 @@
+{
+  "name": "ClubReserve",
+  "short_name": "ClubReserve",
+  "description": "Онлайн-бронювання комп'ютерів у клубах",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#9333ea",
+  "orientation": "portrait-primary",
+  "lang": "uk",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Клуби",
+      "short_name": "Клуби",
+      "url": "/clubs",
+      "description": "Переглянути комп'ютерні клуби"
+    },
+    {
+      "name": "Мої бронювання",
+      "short_name": "Бронювання",
+      "url": "/bookings",
+      "description": "Мої бронювання"
+    }
+  ]
+}
