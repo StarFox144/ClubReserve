@@ -7,9 +7,10 @@
 services:
   - type: web
     name: clubreserve-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
       - key: DATABASE_URL
@@ -24,6 +25,8 @@ services:
         value: 30
       - key: REFRESH_TOKEN_EXPIRE_DAYS
         value: 7
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: TZ
         value: Europe/Kyiv
     healthCheckPath: /health
