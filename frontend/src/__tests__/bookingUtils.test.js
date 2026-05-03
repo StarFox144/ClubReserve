@@ -1,4 +1,5 @@
 ﻿import { describe, it, expect } from "vitest"
+import dayjs from "dayjs"
 import { duration, estimateCost } from "../utils/bookingUtils"
 
 describe("duration()", () => {
@@ -20,31 +21,32 @@ describe("duration()", () => {
 })
 
 describe("estimateCost()", () => {
-  const mockDayjs = (iso) => ({
-    isValid: () => true,
-    diff: (other, unit) => {
-      const ms = new Date(iso) - new Date(other._iso)
-      return unit === "minute" ? ms / 60000 : ms / 3600000
-    },
-    _iso: iso,
+  it("calculates cost for 2 hours at 60/h", () => {
+    const start = dayjs("2026-05-04T10:00")
+    const end = dayjs("2026-05-04T12:00")
+    expect(estimateCost(start, end, 60)).toBe(120)
   })
 
-  it("calculates cost for 2 hours at 60/h", () => {
-    const start = { isValid: () => true, _iso: "2026-05-04T10:00" }
-    const end = {
-      isValid: () => true,
-      diff: (_, unit) => unit === "minute" ? 120 : 2,
-    }
-    expect(estimateCost(end, start, 60)).toBe(null) // wrong order → 0 hours
+  it("calculates cost with decimal hours at 50/h", () => {
+    const start = dayjs("2026-05-04T10:00")
+    const end = dayjs("2026-05-04T11:30")
+    expect(estimateCost(start, end, 50)).toBe(75)
+  })
+
+  it("returns null when end is before start", () => {
+    const start = dayjs("2026-05-04T12:00")
+    const end = dayjs("2026-05-04T10:00")
+    expect(estimateCost(start, end, 60)).toBe(null)
   })
 
   it("returns null when no price", () => {
-    const d = { isValid: () => true, diff: () => 60 }
-    expect(estimateCost(d, d, null)).toBe(null)
+    const start = dayjs("2026-05-04T10:00")
+    const end = dayjs("2026-05-04T12:00")
+    expect(estimateCost(start, end, null)).toBe(null)
   })
 
   it("returns null for invalid dates", () => {
-    const inv = { isValid: () => false }
+    const inv = dayjs("not-a-date")
     expect(estimateCost(inv, inv, 50)).toBe(null)
   })
 })
