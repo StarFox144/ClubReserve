@@ -34,9 +34,9 @@ docker compose up --build
 ```
 
 Після запуску:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- Swagger docs: http://localhost:8000/docs
+- Frontend: https://club-reserve.vercel.app/
+- Backend API: https://clubreserve.onrender.com/
+- Swagger docs: https://clubreserve.onrender.com/docs
 
 ### Перша ініціалізація
 
