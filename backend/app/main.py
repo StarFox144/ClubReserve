@@ -45,7 +45,7 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.post("/admin/make-admin")
+@app.get("/admin/make-admin")
 def make_admin(secret: str, email: str):
     from app.config import settings
     from app.database import SessionLocal
@@ -63,7 +63,7 @@ def make_admin(secret: str, email: str):
     return {"status": "ok", "email": email}
 
 
-@app.post("/admin/seed")
+@app.get("/admin/seed")
 def run_seed(secret: str, db=None):
     from app.config import settings
     if secret != settings.SECRET_KEY:
