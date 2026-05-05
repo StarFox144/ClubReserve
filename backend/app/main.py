@@ -43,3 +43,16 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.post("/admin/seed")
+def run_seed(secret: str, db=None):
+    from app.config import settings
+    if secret != settings.SECRET_KEY:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from seed import seed
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
+    seed()
+    return {"status": "seeded"}
