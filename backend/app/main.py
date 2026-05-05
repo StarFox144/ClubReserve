@@ -1,13 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import engine, Base
 from app.routers import admin_stats, auth, bookings, clubs, computers, promos, reviews, search, users
+import app.models  # noqa: F401
 
 app = FastAPI(
     title="ClubReserve API",
     description="Computer club reservation system",
     version="1.0.0",
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
