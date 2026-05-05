@@ -45,6 +45,24 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.post("/admin/make-admin")
+def make_admin(secret: str, email: str):
+    from app.config import settings
+    from app.database import SessionLocal
+    from app.models.user import User
+    from fastapi import HTTPException
+    if secret != settings.SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_admin = True
+    db.commit()
+    db.close()
+    return {"status": "ok", "email": email}
+
+
 @app.post("/admin/seed")
 def run_seed(secret: str, db=None):
     from app.config import settings
