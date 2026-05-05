@@ -107,7 +107,7 @@ const LoginPage = () => {
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           background: theme.palette.mode === 'dark' ? 'rgba(12,12,20,0.95)' : '#ffffff',
         })}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 4, display: { md: 'none', xs: 'flex' } }}>
+          <Box sx={{ display: { md: 'none', xs: 'flex' }, alignItems: 'center', gap: 1.5, mb: 4 }}>
             <ComputerIcon sx={{ color: '#a855f7', fontSize: 28 }} />
             <Typography variant="h6" fontWeight={800} sx={{ background: 'linear-gradient(135deg,#a855f7,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               ClubReserve
