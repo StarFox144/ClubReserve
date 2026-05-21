@@ -219,7 +219,7 @@ const ClubDetailPage = () => {
 
       {/* Club header */}
       <Box sx={(theme) => ({
-        p: 4, mb: 4, borderRadius: 3,
+        p: { xs: 2.5, sm: 4 }, mb: 4, borderRadius: 3,
         background: theme.palette.mode === 'dark' ? 'linear-gradient(135deg,#12121a 0%,#1a0a2e 100%)' : 'linear-gradient(135deg,#faf7ff 0%,#f0e9ff 100%)',
         border: '1px solid rgba(147,51,234,0.25)', boxShadow: '0 4px 24px rgba(147,51,234,0.1)',
       })}>
@@ -243,7 +243,7 @@ const ClubDetailPage = () => {
 
         <Typography color="text.secondary" sx={{ mb: 3, maxWidth: 600 }}>{club.description}</Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: { xs: 1, sm: 2 } }}>
           {[
             { label: 'Вільних',    value: freeCount,        color: '#10b981' },
             { label: 'Зайнятих',   value: busyCount,        color: '#ef4444' },
@@ -251,12 +251,12 @@ const ClubDetailPage = () => {
             { label: 'Всього',     value: computers.length, color: '#a855f7' },
           ].map((s) => (
             <Box key={s.label} sx={(theme) => ({
-              px: 3, py: 1.5, borderRadius: 2, textAlign: 'center', minWidth: 90,
+              px: { xs: 1, sm: 3 }, py: { xs: 1, sm: 1.5 }, borderRadius: 2, textAlign: 'center',
               background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
               border: `1px solid ${s.color}33`,
             })}>
-              <Typography variant="h5" fontWeight={700} sx={{ color: s.color }}>{s.value}</Typography>
-              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+              <Typography variant="h5" fontWeight={700} sx={{ color: s.color, fontSize: { xs: '1.2rem', sm: '1.5rem' } }}>{s.value}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{s.label}</Typography>
             </Box>
           ))}
         </Box>
@@ -327,17 +327,17 @@ const ClubDetailPage = () => {
 
       {/* Reviews */}
       <Divider sx={{ my: 5 }} />
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
-        Відгуки
+      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+        <Typography variant="h5" fontWeight={700}>Відгуки</Typography>
         {reviews.length > 0 && (
-          <Box component="span" sx={{ ml: 2 }}>
-            <Rating value={avgRating} precision={0.5} readOnly size="small" sx={{ verticalAlign: 'middle', '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Rating value={avgRating} precision={0.5} readOnly size="small" sx={{ '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
+            <Typography variant="body2" color="text.secondary">
               {avgRating.toFixed(1)} · {reviews.length} відгук{reviews.length < 5 ? 'и' : 'ів'}
             </Typography>
           </Box>
         )}
-      </Typography>
+      </Box>
 
       {isAuthenticated && !hasReviewed && (
         <Box component="form" onSubmit={handleSubmitReview} sx={(theme) => ({ p: 3, mb: 4, borderRadius: 2, background: theme.palette.mode === 'dark' ? 'rgba(147,51,234,0.05)' : 'rgba(147,51,234,0.04)', border: '1px solid rgba(147,51,234,0.2)' })}>

@@ -135,12 +135,12 @@ const ClubsPage = () => {
         </Typography>
 
         {/* Search + Sort */}
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
           <TextField
             placeholder="Пошук за назвою, адресою..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ flexGrow: 1, minWidth: 220, maxWidth: 400 }}
+            sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 220 }, maxWidth: { sm: 400 } }}
             size="small"
             InputProps={{
               startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,

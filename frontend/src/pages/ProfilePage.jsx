@@ -101,11 +101,11 @@ const ProfilePage = () => {
 
       {/* Header card */}
       <Paper sx={(theme) => ({
-        p: 4, mb: 3, borderRadius: 3,
+        p: { xs: 2.5, sm: 4 }, mb: 3, borderRadius: 3,
         background: theme.palette.mode === 'dark' ? 'linear-gradient(135deg,#12121a,#1a0a2e)' : 'linear-gradient(135deg,#faf7ff,#f0e9ff)',
         border: '1px solid rgba(147,51,234,0.25)',
       })}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, sm: 3 }, flexWrap: 'wrap' }}>
           {/* Avatar */}
           <Box sx={{
             width: 80, height: 80, borderRadius: 3, flexShrink: 0,

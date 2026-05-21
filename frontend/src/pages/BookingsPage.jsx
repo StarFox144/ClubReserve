@@ -143,11 +143,11 @@ const BookingsPage = () => {
         <Typography variant="h4" fontWeight={700} gutterBottom sx={{ background: 'linear-gradient(135deg,#e2e8f0,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           Мої бронювання
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, mb: 3, maxWidth: { sm: 'max-content' } }}>
           {[{ label: 'Всього', value: counts.all, color: '#a855f7' }, { label: 'Активних', value: counts.active, color: '#10b981' }, { label: 'Завершених', value: counts.completed, color: '#818cf8' }, { label: 'Скасованих', value: counts.cancelled, color: '#6b7280' }].map((s) => (
-            <Box key={s.label} sx={{ px: 2.5, py: 1, borderRadius: 2, background: 'rgba(147,51,234,0.04)', border: `1px solid ${s.color}33`, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box key={s.label} sx={{ px: 2, py: 1, borderRadius: 2, background: 'rgba(147,51,234,0.04)', border: `1px solid ${s.color}33`, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography fontWeight={700} sx={{ color: s.color }}>{s.value}</Typography>
-              <Typography variant="body2" color="text.secondary">{s.label}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>{s.label}</Typography>
             </Box>
           ))}
         </Box>
@@ -159,7 +159,7 @@ const BookingsPage = () => {
             </Button>
           </Box>
         )}
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40 }, '& .MuiTabs-indicator': { backgroundColor: '#a855f7' }, '& .Mui-selected': { color: '#a855f7 !important' }, borderBottom: '1px solid rgba(147,51,234,0.2)' }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, fontSize: { xs: '0.8rem', sm: '0.875rem' } }, '& .MuiTabs-indicator': { backgroundColor: '#a855f7' }, '& .Mui-selected': { color: '#a855f7 !important' }, borderBottom: '1px solid rgba(147,51,234,0.2)' }}>
           {TABS.map((t) => <Tab key={t.value} value={t.value} label={`${t.label}${counts[t.value] > 0 ? ` (${counts[t.value]})` : ''}`} />)}
         </Tabs>
       </Box>

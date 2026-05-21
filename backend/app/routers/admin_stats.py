@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models.booking import Booking
@@ -77,3 +77,65 @@ def get_stats(db: Session = Depends(get_db), admin: User = Depends(get_current_a
             for day, cnt in bookings_per_day
         ],
     }
+
+
+@router.get("/reviews")
+def get_all_reviews(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    reviews = (
+        db.query(Review)
+        .options(joinedload(Review.user), joinedload(Review.club))
+        .order_by(Review.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "user_id": r.user_id,
+            "username": r.user.username if r.user else None,
+            "club_id": r.club_id,
+            "club_name": r.club.name if r.club else None,
+            "rating": r.rating,
+            "comment": r.comment,
+            "created_at": r.created_at,
+        }
+        for r in reviews
+    ]
+
+
+@router.delete("/reviews/{review_id}")
+def delete_review(review_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    db.delete(review)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@router.get("/bookings")
+def get_all_bookings(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    bookings = (
+        db.query(Booking)
+        .options(
+            joinedload(Booking.user),
+            joinedload(Booking.computer).joinedload(Computer.club),
+        )
+        .order_by(Booking.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return [
+        {
+            "id": b.id,
+            "user_id": b.user_id,
+            "username": b.user.username if b.user else None,
+            "computer_id": b.computer_id,
+            "computer_name": b.computer.name if b.computer else None,
+            "club_name": b.computer.club.name if (b.computer and b.computer.club) else None,
+            "start_time": b.start_time,
+            "end_time": b.end_time,
+            "status": b.status,
+            "created_at": b.created_at,
+        }
+        for b in bookings
+    ]

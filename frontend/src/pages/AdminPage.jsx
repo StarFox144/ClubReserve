@@ -35,12 +35,14 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import BlockIcon from '@mui/icons-material/Block'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PercentIcon from '@mui/icons-material/Percent'
+import StarIcon from '@mui/icons-material/Star'
+import EventIcon from '@mui/icons-material/Event'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getAllClubsAdmin, createClub, updateClub, deleteClub } from '../api/clubs'
 import { getAllComputersAdmin, createComputer, updateComputer, deleteComputer } from '../api/computers'
 import { getAllUsersAdmin, toggleUserAdmin, toggleUserActive } from '../api/users'
-import { getAdminStats } from '../api/admin'
+import { getAdminStats, getAllReviewsAdmin, deleteReviewAdmin, getAllBookingsAdmin } from '../api/admin'
 import { getPromos, createPromo, togglePromo } from '../api/promos'
 
 const emptyClub = { name: '', address: '', description: '', is_active: true }
@@ -95,9 +97,12 @@ const AdminPage = () => {
       <Tabs
         value={tab}
         onChange={(_, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
         sx={{
           mb: 3,
-          '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
+          '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minWidth: { xs: 80, sm: 'auto' }, fontSize: { xs: '0.8rem', sm: '0.875rem' } },
           '& .MuiTabs-indicator': { backgroundColor: '#a855f7' },
           '& .Mui-selected': { color: '#a855f7 !important' },
           borderBottom: '1px solid rgba(147,51,234,0.2)',
@@ -108,6 +113,8 @@ const AdminPage = () => {
         <Tab value="computers" label="Комп'ютери" />
         <Tab value="users" label="Користувачі" />
         <Tab value="promos" label="Промо-коди" />
+        <Tab value="bookings" label="Бронювання" />
+        <Tab value="reviews" label="Відгуки" />
       </Tabs>
 
       {tab === 'stats'     && <StatsAdmin />}
@@ -115,6 +122,8 @@ const AdminPage = () => {
       {tab === 'computers' && <ComputersAdmin />}
       {tab === 'users'     && <UsersAdmin />}
       {tab === 'promos'    && <PromosAdmin />}
+      {tab === 'bookings'  && <BookingsAdmin />}
+      {tab === 'reviews'   && <ReviewsAdmin />}
     </Box>
   )
 }
@@ -155,7 +164,7 @@ const StatsAdmin = () => {
   return (
     <Box>
       {/* Stat cards grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: { xs: 1.5, sm: 2 }, mb: 4 }}>
         {STAT_CARDS.map(({ key, label, color, money }) => (
           <Paper key={key} sx={(theme) => ({
             p: 2.5, borderRadius: 2, textAlign: 'center',
@@ -317,7 +326,7 @@ const ClubsAdmin = () => {
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Новий клуб</Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -456,7 +465,7 @@ const ComputersAdmin = () => {
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Новий комп'ютер</Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -569,7 +578,7 @@ const UsersAdmin = () => {
     <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -684,7 +693,7 @@ const PromosAdmin = () => {
         </Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -774,6 +783,160 @@ const PromosAdmin = () => {
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  )
+}
+
+/* ─── Bookings Admin ───────────────────────────────────────── */
+
+const STATUS_COLORS = {
+  active:    { bg: 'rgba(16,185,129,0.1)',  color: '#10b981', border: 'rgba(16,185,129,0.3)'  },
+  completed: { bg: 'rgba(99,102,241,0.1)',  color: '#6366f1', border: 'rgba(99,102,241,0.3)'  },
+  cancelled: { bg: 'rgba(239,68,68,0.1)',   color: '#ef4444', border: 'rgba(239,68,68,0.3)'   },
+}
+
+const StatusChip = ({ status }) => {
+  const s = STATUS_COLORS[status] || STATUS_COLORS.cancelled
+  const labels = { active: 'Активне', completed: 'Завершено', cancelled: 'Скасовано' }
+  return (
+    <Chip label={labels[status] ?? status} size="small"
+      sx={{ bgcolor: s.bg, color: s.color, border: `1px solid ${s.border}`, fontWeight: 600 }} />
+  )
+}
+
+const fmtDate = (d) => new Date(d).toLocaleString('uk-UA', {
+  day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+})
+
+const BookingsAdmin = () => {
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getAllBookingsAdmin()
+      .then(setBookings)
+      .catch(() => setError('Помилка завантаження бронювань'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+
+  return (
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Користувач</TableCell>
+              <TableCell>Комп'ютер</TableCell>
+              <TableCell>Клуб</TableCell>
+              <TableCell>Початок</TableCell>
+              <TableCell>Кінець</TableCell>
+              <TableCell>Статус</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {bookings.map((b) => (
+              <TableRow key={b.id} hover>
+                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{b.id}</TableCell>
+                <TableCell>
+                  <Typography variant="body2" fontWeight={600}>{b.username}</Typography>
+                  <Typography variant="caption" color="text.disabled">ID {b.user_id}</Typography>
+                </TableCell>
+                <TableCell>{b.computer_name ?? `ID ${b.computer_id}`}</TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{b.club_name ?? '—'}</TableCell>
+                <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(b.start_time)}</TableCell>
+                <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(b.end_time)}</TableCell>
+                <TableCell><StatusChip status={b.status} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  )
+}
+
+/* ─── Reviews Admin ────────────────────────────────────────── */
+
+const ReviewsAdmin = () => {
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getAllReviewsAdmin()
+      .then(setReviews)
+      .catch(() => setError('Помилка завантаження відгуків'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Видалити цей відгук?')) return
+    try {
+      await deleteReviewAdmin(id)
+      setReviews((prev) => prev.filter((r) => r.id !== id))
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Помилка видалення')
+    }
+  }
+
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+
+  return (
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, overflowX: 'auto' })}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Користувач</TableCell>
+              <TableCell>Клуб</TableCell>
+              <TableCell>Оцінка</TableCell>
+              <TableCell>Коментар</TableCell>
+              <TableCell>Дата</TableCell>
+              <TableCell align="right">Дії</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {reviews.map((r) => (
+              <TableRow key={r.id} hover>
+                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{r.id}</TableCell>
+                <TableCell>
+                  <Typography variant="body2" fontWeight={600}>{r.username}</Typography>
+                  <Typography variant="caption" color="text.disabled">ID {r.user_id}</Typography>
+                </TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{r.club_name ?? `ID ${r.club_id}`}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <StarIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
+                    <Typography variant="body2" fontWeight={700} sx={{ color: '#f59e0b' }}>{r.rating}</Typography>
+                  </Box>
+                </TableCell>
+                <TableCell sx={{ maxWidth: 280 }}>
+                  <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.comment || <span style={{ color: '#6b7280' }}>—</span>}
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap', color: 'text.secondary' }}>
+                  {new Date(r.created_at).toLocaleDateString('uk-UA')}
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title="Видалити відгук">
+                    <IconButton size="small" onClick={() => handleDelete(r.id)} sx={{ color: '#ef4444' }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   )
 }

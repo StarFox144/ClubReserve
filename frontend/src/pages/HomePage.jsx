@@ -280,7 +280,7 @@ const HomePage = () => {
           <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'absolute', top: 28, left: '12.5%', right: '12.5%', height: 2, background: 'linear-gradient(90deg,#9333ea,#6366f1,#06b6d4,#10b981)', opacity: 0.3, zIndex: 0 }} />
 
           {STEPS.map((s, i) => (
-            <Box key={i} sx={{ flex: 1, minWidth: { xs: '45%', md: 0 }, textAlign: 'center', px: 2, mb: { xs: 4, md: 0 }, position: 'relative', zIndex: 1 }}>
+            <Box key={i} sx={{ flex: 1, minWidth: { xs: '48%', md: 0 }, textAlign: 'center', px: { xs: 1, sm: 2 }, mb: { xs: 3, md: 0 }, position: 'relative', zIndex: 1 }}>
               <Box sx={{
                 width: 56, height: 56, borderRadius: '50%', mx: 'auto', mb: 2,
                 background: `linear-gradient(135deg,#${['7c3aed', '6366f1', '0891b2', '059669'][i]},#${['a855f7', '818cf8', '06b6d4', '10b981'][i]})`,
