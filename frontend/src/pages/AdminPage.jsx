@@ -3,17 +3,13 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControlLabel,
   IconButton,
-  LinearProgress,
   MenuItem,
-  Paper,
   Select,
   Switch,
   Tab,
@@ -42,67 +38,47 @@ import { getAllComputersAdmin, createComputer, updateComputer, deleteComputer } 
 import { getAllUsersAdmin, toggleUserAdmin, toggleUserActive } from '../api/users'
 import { getAdminStats } from '../api/admin'
 import { getPromos, createPromo, togglePromo } from '../api/promos'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { cr, font, tint } from '../design/tokens'
+import { EmptyState, GlassCard, HudStat, Mono, PageLoader, SectionHeader, StatusBadge } from '../components/ui'
 
 const emptyClub = { name: '', address: '', description: '', is_active: true }
 const emptyComputer = { name: '', description: '', club_id: '', price_per_hour: '', is_active: true }
 
-const PURPLE_SWITCH_SX = {
-  '& .MuiSwitch-switchBase.Mui-checked': { color: '#a855f7' },
-  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#a855f7' },
-}
-
 const ActiveChip = ({ active, trueLabel = 'Активний', falseLabel = 'Неактивний' }) => (
-  <Chip
-    label={active ? trueLabel : falseLabel}
-    size="small"
-    sx={{
-      bgcolor: active ? 'rgba(16,185,129,0.1)' : 'rgba(107,114,128,0.1)',
-      color: active ? '#10b981' : '#6b7280',
-      border: `1px solid ${active ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'}`,
-    }}
-  />
+  <StatusBadge status={active ? 'free' : 'inactive'} label={active ? trueLabel : falseLabel} pulse={false} />
 )
+
+const Loader = () => <PageLoader minHeight={240} />
+
+// Shared table cell styles (admin = restrained: no motion, mono numbers)
+const idCell = { fontFamily: font.mono, color: cr.faint, width: 56 }
+const monoCell = { fontFamily: font.mono, fontWeight: 600 }
+const actionBtn = (color) => ({ color, '&:hover': { color, bgcolor: tint(color, 12) } })
 
 const AdminPage = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('stats')
+  usePageTitle('Адмін-панель')
 
   useEffect(() => {
     if (user && !user.is_admin) navigate('/')
   }, [user, navigate])
 
-  if (!user?.is_admin) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress sx={{ color: '#a855f7' }} />
-      </Box>
-    )
-  }
+  if (!user?.is_admin) return <PageLoader label="Перевірка доступу" />
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 4 }}>
-        <AdminPanelSettingsIcon sx={{ color: '#a855f7', fontSize: 32 }} />
-        <Typography variant="h4" fontWeight={700} sx={{
-          background: 'linear-gradient(135deg,#e2e8f0,#a855f7)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        }}>
-          Адмін-панель
-        </Typography>
-      </Box>
+      <SectionHeader
+        component="h1"
+        label="Control panel"
+        title="Адмін-панель"
+        size="md"
+        action={<StatusBadge status="admin" icon={<AdminPanelSettingsIcon sx={{ fontSize: 14 }} />} label={user.username} size="md" />}
+      />
 
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        sx={{
-          mb: 3,
-          '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
-          '& .MuiTabs-indicator': { backgroundColor: '#a855f7' },
-          '& .Mui-selected': { color: '#a855f7 !important' },
-          borderBottom: '1px solid rgba(147,51,234,0.2)',
-        }}
-      >
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 3 }} aria-label="Розділи адмін-панелі">
         <Tab value="stats" label="Статистика" />
         <Tab value="clubs" label="Клуби" />
         <Tab value="computers" label="Комп'ютери" />
@@ -122,14 +98,14 @@ const AdminPage = () => {
 /* ─── Stats Admin ─────────────────────────────────────────── */
 
 const STAT_CARDS = [
-  { key: 'total_users',       label: 'Користувачів',   color: '#818cf8' },
-  { key: 'total_clubs',       label: 'Клубів',         color: '#a855f7' },
-  { key: 'total_computers',   label: "Комп'ютерів",    color: '#9333ea' },
-  { key: 'total_bookings',    label: 'Бронювань',      color: '#6366f1' },
-  { key: 'active_bookings',   label: 'Активних',       color: '#10b981' },
-  { key: 'cancelled_bookings',label: 'Скасованих',     color: '#ef4444' },
-  { key: 'total_reviews',     label: 'Відгуків',       color: '#f59e0b' },
-  { key: 'total_revenue',     label: 'Дохід (₴)',      color: '#10b981', money: true },
+  { key: 'total_users',       label: 'Користувачів',   color: cr.cyan },
+  { key: 'total_clubs',       label: 'Клубів',         color: cr.primary2 },
+  { key: 'total_computers',   label: "Комп'ютерів",    color: cr.primary },
+  { key: 'total_bookings',    label: 'Бронювань',      color: cr.magenta },
+  { key: 'active_bookings',   label: 'Активних',       color: cr.success },
+  { key: 'cancelled_bookings',label: 'Скасованих',     color: cr.danger },
+  { key: 'total_reviews',     label: 'Відгуків',       color: cr.vip },
+  { key: 'total_revenue',     label: 'Дохід',          color: cr.success, money: true },
 ]
 
 const StatsAdmin = () => {
@@ -144,108 +120,82 @@ const StatsAdmin = () => {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+  if (loading) return <Loader />
   if (error) return <Alert severity="error">{error}</Alert>
   if (!stats) return null
 
   const topComputers = stats.top_computers || []
   const maxBookings = topComputers[0]?.bookings_count || 1
   const bookingsByDay = stats.bookings_by_day || []
+  const maxDay = Math.max(1, ...bookingsByDay.map((d) => d.count))
 
   return (
     <Box>
       {/* Stat cards grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: { xs: 1.5, md: 2 }, mb: 3 }}>
         {STAT_CARDS.map(({ key, label, color, money }) => (
-          <Paper key={key} sx={(theme) => ({
-            p: 2.5, borderRadius: 2, textAlign: 'center',
-            background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : '#faf7ff',
-            border: `1px solid ${color}33`,
-          })}>
-            <Typography variant="h4" fontWeight={700} sx={{ color }}>
-              {money
-                ? `₴${Number(stats[key] || 0).toFixed(0)}`
-                : (stats[key] ?? 0)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">{label}</Typography>
-          </Paper>
+          <HudStat
+            key={key}
+            compact
+            hud={false}
+            label={label}
+            accent={color}
+            value={money ? `₴${Number(stats[key] || 0).toFixed(0)}` : (stats[key] ?? 0)}
+          />
         ))}
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-        {/* Top 5 computers */}
-        <Box sx={(theme) => ({
-          p: 3, borderRadius: 2,
-          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#faf7ff',
-          border: '1px solid rgba(147,51,234,0.15)',
-        })}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-            Топ 5 комп'ютерів
-          </Typography>
-          {topComputers.length === 0 && (
-            <Typography color="text.disabled" variant="body2">Немає даних</Typography>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+        {/* Top 5 computers: horizontal neon bars */}
+        <GlassCard sx={{ p: { xs: 2.5, md: 3 } }}>
+          <Typography variant="h6" component="h3" sx={{ mb: 2.5 }}>Топ 5 комп'ютерів</Typography>
+          {topComputers.length === 0 && <EmptyState compact art="pc" title="Немає даних" sx={{ py: 2 }} />}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
             {topComputers.map((item, idx) => (
               <Box key={idx}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: '60%' }}>
-                    {item.computer_name}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {item.club_name}
-                    </Typography>
-                    <Typography variant="caption" fontWeight={700} sx={{ color: '#a855f7', flexShrink: 0 }}>
-                      {item.bookings_count}
-                    </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1, mb: 0.75 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+                    <Mono sx={{ fontSize: '0.7rem', color: cr.faint }}>{String(idx + 1).padStart(2, '0')}</Mono>
+                    <Typography variant="body2" fontWeight={700} noWrap>{item.computer_name}</Typography>
+                    <Typography variant="caption" noWrap sx={{ color: cr.muted }}>{item.club_name}</Typography>
                   </Box>
+                  <Mono sx={{ fontWeight: 700, color: cr.text, flexShrink: 0 }}>{item.bookings_count}</Mono>
                 </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={(item.bookings_count / maxBookings) * 100}
-                  sx={{
-                    height: 6, borderRadius: 3,
-                    bgcolor: 'rgba(168,85,247,0.12)',
-                    '& .MuiLinearProgress-bar': { bgcolor: '#a855f7', borderRadius: 3 },
-                  }}
-                />
+                <Box sx={{ height: 6, borderRadius: 6, bgcolor: tint(cr.primary, 12), overflow: 'hidden' }}>
+                  <Box sx={{ height: '100%', width: `${(item.bookings_count / maxBookings) * 100}%`, borderRadius: 6, background: `linear-gradient(90deg, ${cr.primary2}, ${cr.cyan})`, boxShadow: `0 0 10px ${tint(cr.cyan, 50)}` }} />
+                </Box>
               </Box>
             ))}
           </Box>
-        </Box>
+        </GlassCard>
 
-        {/* Bookings by day */}
-        <Box sx={(theme) => ({
-          p: 3, borderRadius: 2,
-          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#faf7ff',
-          border: '1px solid rgba(147,51,234,0.15)',
-        })}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-            Бронювань по днях (14 днів)
-          </Typography>
-          {bookingsByDay.length === 0 && (
-            <Typography color="text.disabled" variant="body2">Немає даних</Typography>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            {bookingsByDay.map((item, idx) => (
-              <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  {new Date(item.date).toLocaleDateString('uk-UA', { day: '2-digit', month: 'short', weekday: 'short' })}
-                </Typography>
-                <Chip
-                  label={item.count}
-                  size="small"
-                  sx={{
-                    height: 20, fontSize: '0.7rem', fontWeight: 700,
-                    bgcolor: item.count > 0 ? 'rgba(168,85,247,0.15)' : 'rgba(107,114,128,0.1)',
-                    color: item.count > 0 ? '#a855f7' : '#6b7280',
-                  }}
-                />
-              </Box>
-            ))}
+        {/* Bookings by day: vertical bar chart */}
+        <GlassCard sx={{ p: { xs: 2.5, md: 3 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 2.5 }}>
+            <Typography variant="h6" component="h3">Бронювань по днях</Typography>
+            <Mono sx={{ fontSize: '0.7rem', color: cr.faint }}>14 ДНІВ</Mono>
           </Box>
-        </Box>
+          {bookingsByDay.length === 0 ? (
+            <EmptyState compact art="calendar" title="Немає даних" sx={{ py: 2 }} />
+          ) : (
+            <Box role="img" aria-label={`Графік бронювань по днях: ${bookingsByDay.map((d) => d.count).join(', ')}`}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: { xs: 0.5, sm: 0.75 }, height: 180, borderBottom: `1px solid ${cr.border}`, backgroundImage: `repeating-linear-gradient(0deg, ${cr.borderSoft} 0 1px, transparent 1px 45px)` }}>
+                {bookingsByDay.map((item, idx) => (
+                  <Tooltip key={idx} title={`${new Date(item.date).toLocaleDateString('uk-UA', { day: '2-digit', month: 'short', weekday: 'short' })}: ${item.count}`}>
+                    <Box sx={{ flex: 1, height: `${Math.max((item.count / maxDay) * 100, item.count > 0 ? 4 : 1.5)}%`, borderRadius: '4px 4px 0 0', background: item.count > 0 ? `linear-gradient(180deg, ${cr.cyan}, ${cr.primary})` : tint(cr.faint, 30), boxShadow: item.count > 0 ? `0 0 10px ${tint(cr.primary2, 45)}` : 'none' }} />
+                  </Tooltip>
+                ))}
+              </Box>
+              <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 0.75 }, mt: 0.75 }}>
+                {bookingsByDay.map((item, idx) => (
+                  <Mono key={idx} sx={{ flex: 1, textAlign: 'center', fontSize: '0.58rem', color: cr.faint }}>
+                    {new Date(item.date).getDate()}
+                  </Mono>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </GlassCard>
       </Box>
     </Box>
   )
@@ -307,7 +257,7 @@ const ClubsAdmin = () => {
     }
   }
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+  if (loading) return <Loader />
 
   return (
     <Box>
@@ -317,7 +267,7 @@ const ClubsAdmin = () => {
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Новий клуб</Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -331,18 +281,18 @@ const ClubsAdmin = () => {
           <TableBody>
             {clubs.map((club) => (
               <TableRow key={club.id} hover>
-                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{club.id}</TableCell>
-                <TableCell fontWeight={600}>{club.name}</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{club.address}</TableCell>
+                <TableCell sx={idCell}>{club.id}</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>{club.name}</TableCell>
+                <TableCell sx={{ color: cr.muted, fontSize: '0.85rem' }}>{club.address}</TableCell>
                 <TableCell><ActiveChip active={club.is_active} /></TableCell>
                 <TableCell align="right">
                   <Tooltip title="Редагувати">
-                    <IconButton size="small" onClick={() => openEdit(club)} sx={{ color: '#a855f7' }}>
+                    <IconButton size="small" onClick={() => openEdit(club)} aria-label="Редагувати" sx={actionBtn(cr.primaryText)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Видалити">
-                    <IconButton size="small" onClick={() => handleDelete(club.id)} sx={{ color: '#ef4444' }}>
+                    <IconButton size="small" onClick={() => handleDelete(club.id)} aria-label="Видалити" sx={actionBtn(cr.dangerText)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -360,7 +310,7 @@ const ClubsAdmin = () => {
           <TextField label="Адреса" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} fullWidth />
           <TextField label="Опис" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} multiline rows={3} fullWidth />
           <FormControlLabel
-            control={<Switch checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} sx={PURPLE_SWITCH_SX} />}
+            control={<Switch checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />}
             label="Активний"
           />
         </DialogContent>
@@ -446,7 +396,7 @@ const ComputersAdmin = () => {
 
   const clubName = (id) => clubs.find((c) => c.id === id)?.name ?? `ID ${id}`
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+  if (loading) return <Loader />
 
   return (
     <Box>
@@ -456,7 +406,7 @@ const ComputersAdmin = () => {
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Новий комп'ютер</Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -471,21 +421,21 @@ const ComputersAdmin = () => {
           <TableBody>
             {computers.map((pc) => (
               <TableRow key={pc.id} hover>
-                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{pc.id}</TableCell>
-                <TableCell>{pc.name}</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{clubName(pc.club_id)}</TableCell>
-                <TableCell sx={{ color: '#a855f7', fontWeight: 600 }}>
+                <TableCell sx={idCell}>{pc.id}</TableCell>
+                <TableCell sx={monoCell}>{pc.name}</TableCell>
+                <TableCell sx={{ color: cr.muted, fontSize: '0.85rem' }}>{clubName(pc.club_id)}</TableCell>
+                <TableCell sx={monoCell}>
                   {pc.price_per_hour ? `₴${Number(pc.price_per_hour).toFixed(0)}` : '—'}
                 </TableCell>
                 <TableCell><ActiveChip active={pc.is_active} /></TableCell>
                 <TableCell align="right">
                   <Tooltip title="Редагувати">
-                    <IconButton size="small" onClick={() => openEdit(pc)} sx={{ color: '#a855f7' }}>
+                    <IconButton size="small" onClick={() => openEdit(pc)} aria-label="Редагувати" sx={actionBtn(cr.primaryText)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Видалити">
-                    <IconButton size="small" onClick={() => handleDelete(pc.id)} sx={{ color: '#ef4444' }}>
+                    <IconButton size="small" onClick={() => handleDelete(pc.id)} aria-label="Видалити" sx={actionBtn(cr.dangerText)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -516,7 +466,7 @@ const ComputersAdmin = () => {
             inputProps={{ min: 0, step: 5 }} fullWidth
           />
           <FormControlLabel
-            control={<Switch checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} sx={PURPLE_SWITCH_SX} />}
+            control={<Switch checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />}
             label="Активний"
           />
         </DialogContent>
@@ -563,13 +513,13 @@ const UsersAdmin = () => {
     }
   }
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+  if (loading) return <Loader />
 
   return (
     <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -584,25 +534,16 @@ const UsersAdmin = () => {
           <TableBody>
             {users.map((u) => (
               <TableRow key={u.id} hover>
-                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{u.id}</TableCell>
-                <TableCell fontWeight={600}>{u.username}</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{u.email}</TableCell>
+                <TableCell sx={idCell}>{u.id}</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>{u.username}</TableCell>
+                <TableCell sx={{ color: cr.muted, fontSize: '0.85rem' }}>{u.email}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={u.is_admin ? 'Адмін' : 'Юзер'}
-                    size="small"
-                    sx={{
-                      bgcolor: u.is_admin ? 'rgba(168,85,247,0.15)' : 'rgba(107,114,128,0.1)',
-                      color: u.is_admin ? '#a855f7' : '#6b7280',
-                      border: `1px solid ${u.is_admin ? 'rgba(168,85,247,0.4)' : 'rgba(107,114,128,0.3)'}`,
-                      fontWeight: 600,
-                    }}
-                  />
+                  <StatusBadge status={u.is_admin ? 'admin' : 'inactive'} label={u.is_admin ? 'Адмін' : 'Юзер'} pulse={false} />
                 </TableCell>
                 <TableCell><ActiveChip active={u.is_active} /></TableCell>
                 <TableCell align="right">
                   <Tooltip title={u.is_admin ? 'Зняти права адміна' : 'Надати права адміна'}>
-                    <IconButton size="small" onClick={() => handleToggleAdmin(u.id)} sx={{ color: '#a855f7' }}>
+                    <IconButton size="small" onClick={() => handleToggleAdmin(u.id)} aria-label={u.is_admin ? 'Зняти права адміна' : 'Надати права адміна'} sx={actionBtn(cr.primaryText)}>
                       <AdminPanelSettingsIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -610,7 +551,8 @@ const UsersAdmin = () => {
                     <IconButton
                       size="small"
                       onClick={() => handleToggleActive(u.id)}
-                      sx={{ color: u.is_active ? '#10b981' : '#ef4444' }}
+                      aria-label={u.is_active ? 'Заблокувати' : 'Розблокувати'}
+                      sx={actionBtn(u.is_active ? cr.successText : cr.dangerText)}
                     >
                       {u.is_active ? <CheckCircleIcon fontSize="small" /> : <BlockIcon fontSize="small" />}
                     </IconButton>
@@ -672,7 +614,7 @@ const PromosAdmin = () => {
     }
   }
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
+  if (loading) return <Loader />
 
   return (
     <Box>
@@ -684,7 +626,7 @@ const PromosAdmin = () => {
         </Button>
       </Box>
 
-      <TableContainer sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}` })}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -700,29 +642,30 @@ const PromosAdmin = () => {
           <TableBody>
             {promos.map((p) => (
               <TableRow key={p.id} hover>
-                <TableCell sx={{ color: 'text.disabled', width: 50 }}>{p.id}</TableCell>
+                <TableCell sx={idCell}>{p.id}</TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace', color: '#a855f7' }}>
+                  <Typography variant="body2" fontWeight={700} sx={{ fontFamily: font.mono, letterSpacing: '0.08em', color: cr.primaryText }}>
                     {p.code}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <PercentIcon sx={{ fontSize: 14, color: '#10b981' }} />
-                    <Typography variant="body2" fontWeight={600} sx={{ color: '#10b981' }}>
+                    <PercentIcon sx={{ fontSize: 14, color: cr.successText }} />
+                    <Typography variant="body2" fontWeight={700} sx={{ fontFamily: font.mono, color: cr.successText }}>
                       {p.discount_percent}
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell>{p.used_count ?? 0}</TableCell>
-                <TableCell>{p.max_uses ?? '—'}</TableCell>
+                <TableCell sx={monoCell}>{p.used_count ?? 0}</TableCell>
+                <TableCell sx={monoCell}>{p.max_uses ?? '—'}</TableCell>
                 <TableCell><ActiveChip active={p.is_active} /></TableCell>
                 <TableCell align="right">
                   <Tooltip title={p.is_active ? 'Деактивувати' : 'Активувати'}>
                     <IconButton
                       size="small"
                       onClick={() => handleToggle(p.id)}
-                      sx={{ color: p.is_active ? '#10b981' : '#6b7280' }}
+                      aria-label={p.is_active ? 'Деактивувати' : 'Активувати'}
+                      sx={actionBtn(p.is_active ? cr.successText : cr.muted)}
                     >
                       {p.is_active ? <CheckCircleIcon fontSize="small" /> : <BlockIcon fontSize="small" />}
                     </IconButton>
@@ -743,7 +686,7 @@ const PromosAdmin = () => {
             onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
             required
             fullWidth
-            inputProps={{ style: { textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: 2 } }}
+            inputProps={{ style: { textTransform: 'uppercase', fontFamily: 'var(--cr-font-mono)', letterSpacing: 2 } }}
           />
           <TextField
             label="Знижка %"

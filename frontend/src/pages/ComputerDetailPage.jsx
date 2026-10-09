@@ -1,29 +1,29 @@
 import { useState, useEffect } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Chip, CircularProgress,
-  Collapse, Divider, Link, Paper, TextField, Typography,
+  Alert, Box, Breadcrumbs, Button, Collapse, Link, Skeleton, TextField, Typography,
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import dayjs from 'dayjs'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
-import ComputerIcon from '@mui/icons-material/Computer'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import EventAvailableIcon from '@mui/icons-material/EventAvailable'
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import StorefrontIcon from '@mui/icons-material/Storefront'
 import { getComputer, checkAvailability } from '../api/computers'
 import { getClub } from '../api/clubs'
 import { createBooking } from '../api/bookings'
 import { validatePromo } from '../api/promos'
-
-const STATUS_COLORS = {
-  free:        { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  label: 'Вільний' },
-  maintenance: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', label: 'Тех. огляд' },
-}
+import { cr, font, tint } from '../design/tokens'
+import { EmptyState, GlassCard, HudStat, HudStepper, Mono, SectionHeader, StatusBadge } from '../components/ui'
+import { parseSpecs, isVip } from '../components/club/clubUtils'
+import TimeSlotGrid, { slotKey } from '../components/booking/TimeSlotGrid'
+import BookingSummary from '../components/booking/BookingSummary'
+import AccessGranted from '../components/booking/AccessGranted'
 
 const DURATIONS = [
   { label: '30 хв', minutes: 30 },
@@ -32,6 +32,8 @@ const DURATIONS = [
   { label: '3 год', minutes: 180 },
   { label: '4 год', minutes: 240 },
 ]
+
+const BOOKING_STEPS = ['Місце', 'Дата і час', 'Підтвердження']
 
 const toApiStr = (dj) => dj?.isValid() ? dj.format('YYYY-MM-DDTHH:mm') : ''
 
@@ -43,16 +45,7 @@ const getDurationLabel = (start, end) => {
   return h > 0 ? `${h} год${m > 0 ? ` ${m} хв` : ''}` : `${m} хв`
 }
 
-const pickerSx = {
-  width: '100%',
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 2,
-    '& fieldset': { borderColor: 'rgba(147,51,234,0.35)' },
-    '&:hover fieldset': { borderColor: '#9333ea' },
-    '&.Mui-focused fieldset': { borderColor: '#9333ea', boxShadow: '0 0 0 2px rgba(147,51,234,0.2)' },
-  },
-  '& .MuiInputAdornment-root .MuiIconButton-root': { color: '#a855f7' },
-}
+const capsLabel = { fontFamily: font.mono, fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: cr.muted }
 
 const ComputerDetailPage = () => {
   const { id } = useParams()
@@ -64,6 +57,8 @@ const ComputerDetailPage = () => {
   usePageTitle(computer?.name || "Комп'ютер")
   const [pageError, setPageError] = useState('')
 
+  const [date, setDate] = useState(() => dayjs())
+  const [busyKeys, setBusyKeys] = useState(new Set())
   const [startTime, setStartTime] = useState(null)
   const [endTime, setEndTime] = useState(null)
   const [availabilityResult, setAvailabilityResult] = useState(null)
@@ -99,6 +94,11 @@ const ComputerDetailPage = () => {
     resetBookingState()
   }
 
+  const handleDateChange = (val) => {
+    setDate(val)
+    handleStartChange(null)
+  }
+
   const handleQuickDuration = (minutes) => {
     if (!startTime?.isValid()) return
     setEndTime(startTime.add(minutes, 'minute'))
@@ -114,7 +114,9 @@ const ComputerDetailPage = () => {
     }
     setChecking(true)
     try {
-      setAvailabilityResult(await checkAvailability(id, startStr, endStr))
+      const res = await checkAvailability(id, startStr, endStr)
+      setAvailabilityResult(res)
+      if (!res.available) setBusyKeys((prev) => new Set(prev).add(slotKey(startTime)))
     } catch { setBookingError('Помилка перевірки доступності') }
     finally { setChecking(false) }
   }
@@ -145,11 +147,26 @@ const ComputerDetailPage = () => {
     } finally { setBooking(false) }
   }
 
-  if (pageLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
-  if (pageError || !computer) return <Alert severity="error">{pageError || "Комп'ютер не знайдено"}</Alert>
+  if (pageLoading) {
+    return (
+      <Box>
+        <Skeleton variant="rounded" height={180} sx={{ mb: 3, borderRadius: '24px' }} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 340px' }, gap: 3 }}>
+          <Skeleton variant="rounded" height={420} />
+          <Skeleton variant="rounded" height={300} />
+        </Box>
+      </Box>
+    )
+  }
+  if (pageError || !computer) {
+    return (
+      <GlassCard>
+        <EmptyState art="signal" title={pageError || "Комп'ютер не знайдено"} action={<Button variant="outlined" component={RouterLink} to="/clubs">До клубів</Button>} />
+      </GlassCard>
+    )
+  }
 
   const canBook = computer.is_active
-  const statusCfg = canBook ? STATUS_COLORS.free : STATUS_COLORS.maintenance
   const timeValid = startTime?.isValid() && endTime?.isValid() && endTime.isAfter(startTime.add(29, 'minute'))
   const durationLabel = getDurationLabel(startTime, endTime)
   const estimatedHours = timeValid ? endTime.diff(startTime, 'minute') / 60 : 0
@@ -157,196 +174,171 @@ const ComputerDetailPage = () => {
     ? estimatedHours * Number(computer.price_per_hour) : null
   const discountPct = promoResult?.valid ? promoResult.discount_percent : 0
   const discountedCost = baseCost != null ? baseCost * (1 - discountPct / 100) : null
+  const step = bookingSuccess ? 3 : availabilityResult?.available ? 2 : 1
+  const specs = parseSpecs(computer.description)
+  const vip = isVip(computer)
 
   return (
     <Box>
-      <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 3 }}>
-        <Link component={RouterLink} to="/clubs" underline="hover" sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' } }}>
-          Клуби
-        </Link>
-        {club && (
-          <Link component={RouterLink} to={`/clubs/${club.id}`} underline="hover" sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' } }}>
-            {club.name}
-          </Link>
-        )}
-        <Typography sx={{ background: 'linear-gradient(135deg,#a855f7,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 600 }}>
-          {computer.name}
-        </Typography>
+      <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2.5 }} aria-label="Навігаційний ланцюжок">
+        <Link component={RouterLink} to="/clubs" underline="hover" sx={{ color: cr.muted }}>Клуби</Link>
+        {club && <Link component={RouterLink} to={`/clubs/${club.id}`} underline="hover" sx={{ color: cr.muted }}>{club.name}</Link>}
+        <Typography sx={{ font: 'inherit', color: cr.primaryText }}>{computer.name}</Typography>
       </Breadcrumbs>
 
-      {/* Computer info */}
-      <Box sx={(theme) => ({
-        display: 'flex', alignItems: 'flex-start', gap: 3, mb: 4, p: 3, borderRadius: 3,
-        background: theme.palette.mode === 'dark' ? 'linear-gradient(135deg,#12121a 0%,#1a0a2e 100%)' : 'linear-gradient(135deg,#faf7ff 0%,#f0e9ff 100%)',
-        border: `1px solid ${statusCfg.border}`, boxShadow: `0 4px 24px ${statusCfg.bg}`,
-      })}>
-        <Box sx={{ p: 2, borderRadius: 2, background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, flexShrink: 0 }}>
-          <ComputerIcon sx={{ fontSize: 48, color: statusCfg.color }} />
-        </Box>
-        <Box sx={{ flexGrow: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-            <Typography variant="h4" fontWeight={700} sx={{ background: 'linear-gradient(135deg,#e2e8f0,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+      {/* ── Header ── */}
+      <GlassCard hud accent={canBook ? cr.success : cr.warning} sx={{ p: { xs: 2.5, md: 4 }, mb: 3, overflow: 'hidden' }}>
+        <Box aria-hidden sx={{ position: 'absolute', right: -40, top: -40, width: 240, height: 240, borderRadius: '50%', background: `radial-gradient(circle, ${tint(canBook ? cr.success : cr.warning, 18)}, transparent 70%)` }} />
+        <Box sx={{ position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2.5 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+              <StatusBadge status={canBook ? 'free' : 'maintenance'} size="md" label={canBook ? 'Доступний' : 'Тех. огляд'} />
+              {vip && <StatusBadge status="vip" pulse={false} size="md" />}
+            </Box>
+            <Typography component="h1" sx={{ fontFamily: font.mono, fontWeight: 700, fontSize: { xs: '2rem', md: '2.8rem' }, lineHeight: 1.1, color: cr.text, textShadow: `0 0 24px ${tint(cr.primary2, 50)}` }}>
               {computer.name}
             </Typography>
-            <Chip label={statusCfg.label} size="small" sx={{ bgcolor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, fontWeight: 600 }} />
+            {club && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1 }}>
+                <StorefrontIcon sx={{ fontSize: 16, color: cr.cyanText }} />
+                <Typography sx={{ color: cr.muted, fontSize: '0.92rem' }}>{club.name} · {club.address}</Typography>
+              </Box>
+            )}
           </Box>
-          <Typography color="text.secondary" sx={{ mb: 1 }}>{computer.description}</Typography>
           {computer.price_per_hour && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
-              <AttachMoneyIcon sx={{ fontSize: 18, color: '#a855f7' }} />
-              <Typography fontWeight={700} sx={{ color: '#a855f7' }}>₴{Number(computer.price_per_hour).toFixed(0)} / год</Typography>
+            <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+              <Typography sx={capsLabel}>Тариф</Typography>
+              <Mono sx={{ fontSize: { xs: '1.8rem', md: '2.2rem' }, fontWeight: 700, color: cr.text, textShadow: `0 0 18px ${tint(cr.primary2, 45)}` }}>
+                ₴{Number(computer.price_per_hour).toFixed(0)}<Box component="span" sx={{ fontSize: '0.9rem', color: cr.muted }}>/год</Box>
+              </Mono>
             </Box>
           )}
-          {club && <Typography variant="body2" color="text.disabled" sx={{ mt: 1 }}>Клуб: {club.name} · {club.address}</Typography>}
+        </Box>
+      </GlassCard>
+
+      {specs.length > 0 && (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: `repeat(${Math.min(specs.length, 4)}, 1fr)` }, gap: { xs: 1.5, md: 2 }, mb: { xs: 5, md: 7 } }}>
+          {specs.map((s, i) => (
+            <HudStat key={i} compact label={s.kind} value={<Box component="span" sx={{ fontSize: { xs: '0.92rem', md: '1.02rem' } }}>{s.label}</Box>} accent={s.color} />
+          ))}
+        </Box>
+      )}
+
+      {/* ── Booking ── */}
+      <SectionHeader index={1} label="Бронювання" title="Забронювати сесію" size="md" />
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px' }, gap: 3, alignItems: 'start' }}>
+        <GlassCard strong sx={{ p: { xs: 2.5, md: 3.5 } }}>
+          <HudStepper steps={BOOKING_STEPS} active={step} sx={{ mb: 3.5 }} />
+
+          {!canBook && <Alert severity="warning" sx={{ mb: 3 }}>Цей комп'ютер зараз недоступний</Alert>}
+          {!isAuthenticated && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Для бронювання потрібно <Link component={RouterLink} to="/login">увійти в акаунт</Link>
+            </Alert>
+          )}
+
+          {bookingSuccess ? (
+            <AccessGranted pcName={computer.name} when={startTime?.isValid() && endTime?.isValid() ? `${startTime.format('D MMM, HH:mm')} → ${endTime.format('HH:mm')}` : null} />
+          ) : step === 1 ? (
+            <Box component="form" onSubmit={handleCheckAvailability} aria-disabled={!canBook} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, opacity: canBook ? 1 : 0.5, pointerEvents: canBook ? 'auto' : 'none' }}>
+              <DatePicker label="Дата" value={date} onChange={handleDateChange} minDate={dayjs()} slotProps={{ textField: { fullWidth: true } }} />
+
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
+                  <AccessTimeIcon sx={{ fontSize: 15, color: cr.primaryText }} />
+                  <Typography sx={capsLabel}>Час початку</Typography>
+                </Box>
+                <TimeSlotGrid date={date} value={startTime} onChange={handleStartChange} busyKeys={busyKeys} />
+              </Box>
+
+              {startTime?.isValid() && (
+                <Box>
+                  <Typography sx={{ ...capsLabel, mb: 1 }}>Тривалість</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {DURATIONS.map((d) => {
+                      const target = startTime.add(d.minutes, 'minute')
+                      const isSel = endTime?.isValid() && endTime.isSame(target, 'minute')
+                      return (
+                        <Button key={d.label} size="small" variant={isSel ? 'contained' : 'outlined'} aria-pressed={isSel}
+                          onClick={() => handleQuickDuration(d.minutes)} sx={{ minWidth: 72, fontFamily: font.mono }}>
+                          {d.label}
+                        </Button>
+                      )
+                    })}
+                  </Box>
+                </Box>
+              )}
+
+              <DateTimePicker label="Кінець сесії" value={endTime}
+                onChange={(v) => { setEndTime(v); resetBookingState() }}
+                minDateTime={startTime?.isValid() ? startTime.add(30, 'minute') : dayjs()}
+                minutesStep={15} ampm={false}
+                slotProps={{ textField: { fullWidth: true, helperText: 'Мінімум 30 хвилин від початку' } }} />
+
+              {availabilityResult && !availabilityResult.available && (
+                <Alert severity="warning">Цей час вже зайнятий. Оберіть інший час.</Alert>
+              )}
+              {bookingError && <Alert severity="error">{bookingError}</Alert>}
+
+              <Button type="submit" variant="contained" size="large" fullWidth disabled={!timeValid} loading={checking} endIcon={<ArrowForwardIcon />}>
+                {checking ? 'Перевірка...' : 'Перевірити доступність'}
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
+              <Alert severity="success">Комп'ютер вільний на обраний час!</Alert>
+
+              <Box>
+                <Button size="small" startIcon={<LocalOfferIcon sx={{ fontSize: 14 }} />} onClick={() => setShowPromo((v) => !v)} aria-expanded={showPromo}>
+                  {showPromo ? 'Приховати промо-код' : 'Є промо-код?'}
+                </Button>
+                <Collapse in={showPromo}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mt: 1.5 }}>
+                    <TextField size="small" label="Промо-код" value={promoCode}
+                      onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
+                      inputProps={{ style: { fontFamily: 'var(--cr-font-mono)', letterSpacing: '0.12em' } }}
+                      sx={{ flex: 1 }} />
+                    <Button variant="outlined" onClick={handleValidatePromo} loading={promoValidating} disabled={!promoCode.trim()} sx={{ height: 40, flexShrink: 0 }}>
+                      Застосувати
+                    </Button>
+                  </Box>
+                  {promoResult && (
+                    <Alert severity={promoResult.valid ? 'success' : 'error'} sx={{ mt: 1, py: 0.25 }}>
+                      {promoResult.valid ? `Знижка ${promoResult.discount_percent}% застосована!` : promoResult.message || 'Невірний код'}
+                    </Alert>
+                  )}
+                </Collapse>
+              </Box>
+
+              {bookingError && <Alert severity="error">{bookingError}</Alert>}
+
+              <Box sx={{ display: 'flex', gap: 1.25, flexDirection: { xs: 'column-reverse', sm: 'row' } }}>
+                <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={resetBookingState} sx={{ flexShrink: 0 }}>Назад</Button>
+                {isAuthenticated && (
+                  <Button variant="contained" fullWidth size="large" onClick={handleBook} loading={booking}>
+                    {booking ? 'Бронювання...' : `Забронювати${discountPct > 0 && discountedCost ? ` · ₴${discountedCost.toFixed(2)}` : ''}`}
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          )}
+        </GlassCard>
+
+        <Box sx={{ position: { md: 'sticky' }, top: { md: 96 } }}>
+          <BookingSummary
+            pcName={computer.name}
+            clubName={club?.name}
+            start={timeValid ? startTime : null}
+            end={timeValid ? endTime : null}
+            durationLabel={timeValid ? durationLabel : null}
+            pricePerHour={computer.price_per_hour}
+            baseCost={baseCost}
+            discountPct={discountPct}
+            finalCost={discountedCost}
+          />
         </Box>
       </Box>
-
-      <Divider sx={{ mb: 4 }} />
-
-      {/* Booking form */}
-      <Paper sx={(theme) => ({ p: 4, maxWidth: 520, background: theme.palette.mode === 'dark' ? 'linear-gradient(135deg,#12121a 0%,#1a1a2e 100%)' : '#ffffff' })}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <EventAvailableIcon sx={{ color: '#a855f7' }} />
-          <Typography variant="h6" fontWeight={700}>Бронювання</Typography>
-        </Box>
-
-        {!canBook && <Alert severity="warning" sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}>Цей комп'ютер зараз недоступний</Alert>}
-        {!isAuthenticated && (
-          <Alert severity="info" sx={{ mb: 3, bgcolor: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8' }}>
-            Для бронювання потрібно <Link component={RouterLink} to="/login" sx={{ color: '#a855f7' }}>увійти в акаунт</Link>
-          </Alert>
-        )}
-
-        <Box component="form" onSubmit={handleCheckAvailability} sx={{ opacity: canBook ? 1 : 0.5, pointerEvents: canBook ? 'auto' : 'none' }}>
-          {/* Start time */}
-          <Box sx={{ mb: 2.5 }}>
-            <DateTimePicker label="Початок сесії" value={startTime} onChange={handleStartChange}
-              minDateTime={dayjs()} minutesStep={15} ampm={false} sx={pickerSx}
-              slotProps={{ textField: { fullWidth: true, helperText: 'Вибери дату та час початку' } }} />
-          </Box>
-
-          {/* Quick durations */}
-          {startTime?.isValid() && (
-            <Box sx={{ mb: 2.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                <AccessTimeIcon sx={{ fontSize: 15, color: '#a855f7' }} />
-                <Typography variant="body2" fontWeight={600}>Тривалість</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {DURATIONS.map((d) => {
-                  const target = startTime.add(d.minutes, 'minute')
-                  const selected = endTime?.isValid() && endTime.isSame(target, 'minute')
-                  return (
-                    <Button key={d.label} size="small" variant={selected ? 'contained' : 'outlined'}
-                      onClick={() => handleQuickDuration(d.minutes)}
-                      sx={{ minWidth: 68, borderRadius: 2, fontWeight: 600, ...(selected ? {} : { borderColor: 'rgba(147,51,234,0.4)', color: 'text.secondary', '&:hover': { borderColor: '#a855f7', color: '#a855f7', bgcolor: 'rgba(147,51,234,0.06)' } }) }}>
-                      {d.label}
-                    </Button>
-                  )
-                })}
-              </Box>
-            </Box>
-          )}
-
-          {/* End time */}
-          <Box sx={{ mb: 2.5 }}>
-            <DateTimePicker label="Кінець сесії" value={endTime}
-              onChange={(v) => { setEndTime(v); resetBookingState() }}
-              minDateTime={startTime?.isValid() ? startTime.add(30, 'minute') : dayjs()}
-              minutesStep={15} ampm={false} sx={pickerSx}
-              slotProps={{ textField: { fullWidth: true, helperText: 'Мінімум 30 хвилин від початку' } }} />
-          </Box>
-
-          {/* Summary */}
-          {timeValid && (
-            <Box sx={{ p: 2, mb: 2, borderRadius: 2, background: 'rgba(147,51,234,0.06)', border: '1px solid rgba(147,51,234,0.25)' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {startTime.format('dd, D MMM · HH:mm')} → {endTime.format('HH:mm')}
-                  </Typography>
-                  {durationLabel && <Typography variant="body2" fontWeight={600}>{durationLabel}</Typography>}
-                </Box>
-                {baseCost != null && (
-                  <Box sx={{ textAlign: 'right' }}>
-                    {discountPct > 0 ? (
-                      <>
-                        <Typography variant="caption" color="text.disabled" sx={{ textDecoration: 'line-through' }}>₴{baseCost.toFixed(2)}</Typography>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#10b981', lineHeight: 1.2 }}>₴{discountedCost.toFixed(2)}</Typography>
-                        <Typography variant="caption" sx={{ color: '#10b981' }}>-{discountPct}%</Typography>
-                      </>
-                    ) : (
-                      <>
-                        <Typography variant="caption" color="text.secondary">Орієнтовно</Typography>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#10b981', lineHeight: 1.2 }}>₴{baseCost.toFixed(2)}</Typography>
-                      </>
-                    )}
-                  </Box>
-                )}
-              </Box>
-            </Box>
-          )}
-
-          {/* Promo code */}
-          {timeValid && (
-            <Box sx={{ mb: 2 }}>
-              <Button size="small" startIcon={<LocalOfferIcon sx={{ fontSize: 14 }} />}
-                onClick={() => setShowPromo((v) => !v)}
-                sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' }, mb: 1, p: 0, fontSize: '0.8rem' }}>
-                {showPromo ? 'Приховати промо-код' : 'Є промо-код?'}
-              </Button>
-              <Collapse in={showPromo}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                  <TextField
-                    size="small" label="Промо-код" value={promoCode}
-                    onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
-                    sx={{ flex: 1, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: 'rgba(147,51,234,0.35)' }, '&:hover fieldset': { borderColor: '#9333ea' } } }}
-                  />
-                  <Button variant="outlined" size="small" onClick={handleValidatePromo}
-                    disabled={promoValidating || !promoCode.trim()} sx={{ height: 40, flexShrink: 0, borderColor: 'rgba(147,51,234,0.4)', color: '#a855f7' }}>
-                    {promoValidating ? <CircularProgress size={14} /> : 'Застосувати'}
-                  </Button>
-                </Box>
-                {promoResult && (
-                  <Alert severity={promoResult.valid ? 'success' : 'error'} sx={{ mt: 1, py: 0.5,
-                    ...(promoResult.valid ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' } : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' })
-                  }}>
-                    {promoResult.valid ? `Знижка ${promoResult.discount_percent}% застосована!` : promoResult.message || 'Невірний код'}
-                  </Alert>
-                )}
-              </Collapse>
-            </Box>
-          )}
-
-          <Button type="submit" variant="outlined" fullWidth disabled={!timeValid || checking} sx={{ mb: 2 }}
-            startIcon={checking ? <CircularProgress size={16} color="inherit" /> : null}>
-            {checking ? 'Перевірка...' : 'Перевірити доступність'}
-          </Button>
-        </Box>
-
-        {availabilityResult && (
-          <Alert severity={availabilityResult.available ? 'success' : 'warning'} icon={availabilityResult.available ? <CheckCircleIcon /> : undefined}
-            sx={{ mb: 2, ...(availabilityResult.available ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' } : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }) }}>
-            {availabilityResult.available ? "Комп'ютер вільний на обраний час!" : 'Цей час вже зайнятий. Оберіть інший час.'}
-          </Alert>
-        )}
-
-        {bookingError && <Alert severity="error" sx={{ mb: 2, bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}>{bookingError}</Alert>}
-
-        {bookingSuccess && (
-          <Alert severity="success" sx={{ mb: 2, bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
-            Бронювання успішно створено!{' '}
-            <Link component={RouterLink} to="/bookings" sx={{ color: '#10b981', fontWeight: 600 }}>Переглянути мої бронювання</Link>
-          </Alert>
-        )}
-
-        {isAuthenticated && availabilityResult?.available && !bookingSuccess && (
-          <Button variant="contained" fullWidth size="large" onClick={handleBook} disabled={booking} sx={{ mt: 1 }}
-            startIcon={booking ? <CircularProgress size={16} color="inherit" /> : null}>
-            {booking ? 'Бронювання...' : `Забронювати${discountPct > 0 && discountedCost ? ` · ₴${discountedCost.toFixed(2)}` : ''}`}
-          </Button>
-        )}
-      </Paper>
     </Box>
   )
 }

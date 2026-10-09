@@ -1,75 +1,55 @@
 import { Box, Button, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import ComputerIcon from '@mui/icons-material/Computer'
 import HomeIcon from '@mui/icons-material/Home'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { cr, font, tint } from '../design/tokens'
+import { SynthGrid } from '../components/ui'
 
 const NotFoundPage = () => {
+  usePageTitle('404')
   const navigate = useNavigate()
 
   return (
-    <Box sx={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', minHeight: '70vh', textAlign: 'center', px: 3,
-    }}>
-      {/* Glowing 404 */}
-      <Box sx={{ position: 'relative', mb: 4 }}>
-        <Typography sx={{
-          fontSize: { xs: '7rem', md: '12rem' }, fontWeight: 900, lineHeight: 1,
-          background: 'linear-gradient(135deg,#1a0a2e,#2d1b69)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          userSelect: 'none',
-          filter: 'drop-shadow(0 0 40px rgba(147,51,234,0.3))',
-        }}>
+    <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', textAlign: 'center', px: 2, overflow: 'hidden', borderRadius: '28px' }}>
+      <SynthGrid full />
+
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
+        <Typography sx={{ fontFamily: font.mono, fontSize: '0.75rem', letterSpacing: '0.28em', color: cr.dangerText, mb: 2 }}>
+          ERR_ROUTE_NOT_FOUND
+        </Typography>
+
+        <Typography
+          component="h1"
+          className="cr-glitch"
+          data-text="404"
+          aria-label="Помилка 404"
+          sx={{
+            fontFamily: font.display, fontWeight: 800, lineHeight: 1,
+            fontSize: { xs: '6.5rem', sm: '9rem', md: '12rem' },
+            color: cr.text,
+            textShadow: `0 0 30px ${tint(cr.primary2, 60)}, 0 0 80px ${tint(cr.cyan, 25)}`,
+          }}
+        >
           404
         </Typography>
-        <Box className="float" sx={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%,-50%)',
-          opacity: 0.15,
-        }}>
-          <ComputerIcon sx={{ fontSize: { xs: 80, md: 130 }, color: '#a855f7' }} />
+
+        <Typography sx={{ fontFamily: font.mono, fontWeight: 700, fontSize: { xs: '1rem', md: '1.4rem' }, letterSpacing: '0.35em', color: cr.cyanText, mt: 1, mb: 3, textShadow: cr.glowCyan }}>
+          — SIGNAL LOST —
+        </Typography>
+
+        <Typography sx={{ color: cr.muted, mb: 5, maxWidth: 400, mx: 'auto', lineHeight: 1.8 }}>
+          Здається, цей комп'ютер уже хтось забронював… або сторінка просто не існує.
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Button variant="contained" size="large" startIcon={<HomeIcon />} onClick={() => navigate('/')}>
+            На головну
+          </Button>
+          <Button variant="outlined" size="large" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
+            Назад
+          </Button>
         </Box>
-      </Box>
-
-      <Typography variant="h4" fontWeight={800} gutterBottom sx={{
-        background: 'linear-gradient(135deg,#e2e8f0,#a855f7)',
-        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-      }}>
-        Сторінку не знайдено
-      </Typography>
-
-      <Typography color="text.secondary" sx={{ mb: 5, maxWidth: 380, lineHeight: 1.8 }}>
-        Здається, цей комп'ютер уже хтось забронював... або сторінка просто не існує.
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Button
-          variant="contained"
-          startIcon={<HomeIcon />}
-          onClick={() => navigate('/')}
-          sx={{ px: 4, py: 1.25, borderRadius: 2 }}
-        >
-          На головну
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ px: 4, py: 1.25, borderRadius: 2, borderColor: 'rgba(168,85,247,0.4)', color: '#a855f7', '&:hover': { borderColor: '#a855f7', bgcolor: 'rgba(168,85,247,0.06)' } }}
-        >
-          Назад
-        </Button>
-      </Box>
-
-      {/* Decorative dots */}
-      <Box sx={{ display: 'flex', gap: 1, mt: 6 }}>
-        {['#a855f7','#818cf8','#06b6d4'].map((c, i) => (
-          <Box key={i} className="pulse-glow" sx={{
-            width: 8, height: 8, borderRadius: '50%', bgcolor: c,
-            animationDelay: `${i * 0.4}s`,
-          }} />
-        ))}
       </Box>
     </Box>
   )

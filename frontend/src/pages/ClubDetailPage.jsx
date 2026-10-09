@@ -1,48 +1,39 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Alert, Box, Breadcrumbs, Button, Card, CardActions, CardContent,
-  Chip, CircularProgress, Collapse, Dialog, DialogContent, DialogTitle,
-  Divider, Grid, IconButton, Link, Rating, TextField, Typography,
+  Alert, Box, Breadcrumbs, Button, Collapse, Dialog, DialogContent,
+  IconButton, Link, Rating, Skeleton, TextField, Typography,
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import dayjs from 'dayjs'
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
-import ComputerIcon from '@mui/icons-material/Computer'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import BuildIcon from '@mui/icons-material/Build'
-import BlockIcon from '@mui/icons-material/Block'
-import StarIcon from '@mui/icons-material/Star'
+import MemoryIcon from '@mui/icons-material/Memory'
+import DeveloperBoardIcon from '@mui/icons-material/DeveloperBoard'
+import MonitorIcon from '@mui/icons-material/Monitor'
+import StorageIcon from '@mui/icons-material/Storage'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CloseIcon from '@mui/icons-material/Close'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { getClub, getBusyComputers } from '../api/clubs'
-
-const parseSpecs = (desc) => {
-  if (!desc) return []
-  return desc.split(' · ').map((s) => {
-    const t = s.trim()
-    if (/intel|ryzen/i.test(t))  return { label: t, color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.3)'  }
-    if (/rtx|gtx|rx\s|arc/i.test(t)) return { label: t, color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.3)'  }
-    if (/gb ram/i.test(t))        return { label: t, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)'  }
-    if (/гц/i.test(t))            return { label: t, color: '#a855f7', bg: 'rgba(168,85,247,0.1)',  border: 'rgba(168,85,247,0.3)'  }
-    return                               { label: t, color: '#9ca3af', bg: 'rgba(156,163,175,0.08)', border: 'rgba(156,163,175,0.2)' }
-  })
-}
 import { getComputers, checkAvailability } from '../api/computers'
 import { getReviews, createReview } from '../api/reviews'
 import { createBooking } from '../api/bookings'
 import { validatePromo } from '../api/promos'
-
-const STATUS_CONFIG = {
-  free:        { label: 'Вільний',    color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.3)',  icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
-  busy:        { label: 'Зайнятий',   color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   icon: <BlockIcon sx={{ fontSize: 14 }} /> },
-  maintenance: { label: 'Тех. огляд', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', icon: <BuildIcon sx={{ fontSize: 14 }} /> },
-}
+import { cr, font, tint, STATUS } from '../design/tokens'
+import { EmptyState, GlassCard, HudStat, HudStepper, Mono, Reveal, SectionHeader, StatusBadge } from '../components/ui'
+import ClubBanner from '../components/club/ClubBanner'
+import HallMap, { seatStatus } from '../components/club/HallMap'
+import { parseSpecs, isVip, topSpec } from '../components/club/clubUtils'
+import TimeSlotGrid, { slotKey } from '../components/booking/TimeSlotGrid'
+import BookingSummary from '../components/booking/BookingSummary'
+import AccessGranted from '../components/booking/AccessGranted'
 
 const QUICK_DURATIONS = [
   { label: '1 год', minutes: 60 },
@@ -50,18 +41,11 @@ const QUICK_DURATIONS = [
   { label: '3 год', minutes: 180 },
 ]
 
+const BOOKING_STEPS = ['Місце', 'Дата і час', 'Підтвердження']
+
 const toApiStr = (dj) => dj?.isValid() ? dj.format('YYYY-MM-DDTHH:mm') : ''
 
-const pickerSx = {
-  width: '100%',
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 2,
-    '& fieldset': { borderColor: 'rgba(147,51,234,0.35)' },
-    '&:hover fieldset': { borderColor: '#9333ea' },
-    '&.Mui-focused fieldset': { borderColor: '#9333ea', boxShadow: '0 0 0 2px rgba(147,51,234,0.2)' },
-  },
-  '& .MuiInputAdornment-root .MuiIconButton-root': { color: '#a855f7' },
-}
+const capsLabel = { fontFamily: font.mono, fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: cr.muted }
 
 const ClubDetailPage = () => {
   const { id } = useParams()
@@ -81,8 +65,13 @@ const ClubDetailPage = () => {
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewError, setReviewError] = useState('')
 
+  // Hall map selection (UI only)
+  const [selectedId, setSelectedId] = useState(null)
+
   // Quick booking dialog
   const [quickTarget, setQuickTarget] = useState(null)
+  const [qbDate, setQbDate] = useState(null)
+  const [qbBusyKeys, setQbBusyKeys] = useState(new Set())
   const [qbStart, setQbStart] = useState(null)
   const [qbEnd, setQbEnd] = useState(null)
   const [qbAvailability, setQbAvailability] = useState(null)
@@ -137,6 +126,7 @@ const ClubDetailPage = () => {
 
   const openQuickBook = (computer) => {
     setQuickTarget(computer)
+    setQbDate(dayjs()); setQbBusyKeys(new Set())
     setQbStart(null); setQbEnd(null)
     setQbAvailability(null); setQbSuccess(false); setQbError('')
     setQbShowPromo(false); setQbPromoCode(''); setQbPromoResult(null)
@@ -148,6 +138,11 @@ const ClubDetailPage = () => {
     if (val?.isValid()) setQbEnd(val.add(1, 'hour'))
     else setQbEnd(null)
     setQbAvailability(null); setQbSuccess(false); setQbError('')
+  }
+
+  const handleQbDateChange = (val) => {
+    setQbDate(val)
+    handleQbStartChange(null)
   }
 
   const handleQbValidatePromo = async () => {
@@ -165,6 +160,8 @@ const ClubDetailPage = () => {
     try {
       const res = await checkAvailability(quickTarget.id, toApiStr(qbStart), toApiStr(qbEnd))
       setQbAvailability(res)
+      // remember the busy start slot so the grid can cross it out
+      if (!res.available) setQbBusyKeys((prev) => new Set(prev).add(slotKey(qbStart)))
     } catch { setQbError('Помилка перевірки доступності') }
     finally { setQbChecking(false) }
   }
@@ -184,14 +181,33 @@ const ClubDetailPage = () => {
     } finally { setQbBooking(false) }
   }
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress sx={{ color: '#a855f7' }} /></Box>
-  if (error || !club) return <Alert severity="error">{error || 'Клуб не знайдено'}</Alert>
+  if (loading) {
+    return (
+      <Box>
+        <Skeleton variant="rounded" height={280} sx={{ mb: 3, borderRadius: '24px' }} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={96} />)}
+        </Box>
+        <Skeleton variant="rounded" height={360} />
+      </Box>
+    )
+  }
+  if (error || !club) {
+    return (
+      <GlassCard>
+        <EmptyState art="signal" title={error || 'Клуб не знайдено'} action={<Button variant="outlined" component={RouterLink} to="/clubs">До списку клубів</Button>} />
+      </GlassCard>
+    )
+  }
 
   const freeCount = computers.filter((c) => c.is_active && !busyIds.has(c.id)).length
   const busyCount = computers.filter((c) => busyIds.has(c.id)).length
   const maintenanceCount = computers.filter((c) => !c.is_active).length
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
   const hasReviewed = user && reviews.some((r) => r.user_id === user.id)
+
+  const selected = computers.find((c) => c.id === selectedId) || null
+  const selectedStatus = selected ? seatStatus(selected, busyIds) : null
 
   const qbTimeValid = qbStart?.isValid() && qbEnd?.isValid() && qbEnd.isAfter(qbStart.add(29, 'minute'))
   const qbDurationMins = qbTimeValid ? qbEnd.diff(qbStart, 'minute') : 0
@@ -205,299 +221,313 @@ const ClubDetailPage = () => {
   const qbDiscountedCost = qbEstCost && qbDiscountPct > 0
     ? (parseFloat(qbEstCost) * (1 - qbDiscountPct / 100)).toFixed(2)
     : null
+  const qbStep = qbSuccess ? 3 : qbAvailability?.available ? 2 : 1
+
+  const specs = [
+    { label: 'GPU', value: topSpec(computers, 'GPU'), icon: <DeveloperBoardIcon />, accent: cr.success },
+    { label: 'CPU', value: topSpec(computers, 'CPU'), icon: <MemoryIcon />, accent: cr.cyan },
+    { label: 'Монітор', value: topSpec(computers, 'Hz'), icon: <MonitorIcon />, accent: cr.magenta },
+    { label: 'RAM', value: topSpec(computers, 'RAM'), icon: <StorageIcon />, accent: cr.warning },
+  ].filter((s) => s.value)
 
   return (
     <Box>
-      <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 3 }}>
-        <Link component={RouterLink} to="/clubs" underline="hover" sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' } }}>
-          Клуби
-        </Link>
-        <Typography sx={{ background: 'linear-gradient(135deg,#a855f7,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 600 }}>
-          {club.name}
-        </Typography>
+      <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2.5 }} aria-label="Навігаційний ланцюжок">
+        <Link component={RouterLink} to="/clubs" underline="hover" sx={{ color: cr.muted }}>Клуби</Link>
+        <Typography sx={{ font: 'inherit', color: cr.primaryText }}>{club.name}</Typography>
       </Breadcrumbs>
 
-      {/* Club header */}
-      <Box sx={(theme) => ({
-        p: 4, mb: 4, borderRadius: 3,
-        background: theme.palette.mode === 'dark' ? 'linear-gradient(135deg,#12121a 0%,#1a0a2e 100%)' : 'linear-gradient(135deg,#faf7ff 0%,#f0e9ff 100%)',
-        border: '1px solid rgba(147,51,234,0.25)', boxShadow: '0 4px 24px rgba(147,51,234,0.1)',
-      })}>
-        <Typography variant="h4" fontWeight={700} gutterBottom sx={{ background: 'linear-gradient(135deg,#e2e8f0,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-          {club.name}
-        </Typography>
-
-        {reviews.length > 0 && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <Rating value={avgRating} precision={0.5} readOnly size="small" sx={{ '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
-            <Typography variant="body2" color="text.secondary">
-              {avgRating.toFixed(1)} ({reviews.length} {reviews.length < 5 ? 'відгуки' : 'відгуків'})
+      {/* ── Banner ── */}
+      <GlassCard hud accent={cr.primary2} sx={{ overflow: 'hidden', mb: 3, borderRadius: '24px' }}>
+        <ClubBanner id={club.id} name={club.name} height={{ xs: 300, md: 320 }}>
+          <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${tint(cr.primary, 22)}, transparent 60%)`, mixBlendMode: 'screen' }} aria-hidden />
+          <Box sx={{ position: 'absolute', left: { xs: 20, md: 36 }, right: { xs: 20, md: 36 }, bottom: { xs: 20, md: 32 } }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+              <StatusBadge status="free" label={`Вільно ${freeCount}/${computers.length}`} size="md" />
+              {busyCount > 0 && <StatusBadge status="busy" label={`Зайнято ${busyCount}`} size="md" />}
+              {maintenanceCount > 0 && <StatusBadge status="maintenance" label={`Тех. огляд ${maintenanceCount}`} size="md" />}
+            </Box>
+            <Typography component="h1" sx={{ fontFamily: font.display, fontWeight: 800, fontSize: { xs: '1.9rem', sm: '2.4rem', md: '3rem' }, lineHeight: 1.08, color: cr.text, textShadow: `0 0 30px ${tint(cr.primary2, 55)}`, mb: 1 }}>
+              {club.name}
             </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 2.5, rowGap: 0.75 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <LocationOnIcon sx={{ fontSize: 17, color: cr.cyanText }} />
+                <Typography sx={{ color: cr.text, opacity: 0.85, fontSize: '0.92rem' }}>{club.address}</Typography>
+              </Box>
+              {reviews.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Rating value={avgRating} precision={0.5} readOnly size="small" />
+                  <Mono sx={{ fontSize: '0.82rem', color: cr.text }}>{avgRating.toFixed(1)}</Mono>
+                  <Typography sx={{ fontSize: '0.82rem', color: cr.muted }}>({reviews.length} {reviews.length < 5 ? 'відгуки' : 'відгуків'})</Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </ClubBanner>
+        {club.description && (
+          <Typography sx={{ px: { xs: 2.5, md: 4.5 }, py: 2.5, color: cr.muted, lineHeight: 1.75, borderTop: `1px solid ${cr.borderSoft}` }}>
+            {club.description}
+          </Typography>
+        )}
+      </GlassCard>
+
+      {/* ── Hardware specs ── */}
+      {specs.length > 0 && (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: `repeat(${specs.length}, 1fr)` }, gap: { xs: 1.5, md: 2 }, mb: { xs: 6, md: 8 } }}>
+          {specs.map((s, i) => (
+            <Reveal key={s.label} delay={i * 70}>
+              <HudStat compact label={s.label} value={<Box component="span" sx={{ fontSize: { xs: '0.95rem', md: '1.05rem' } }}>{s.value}</Box>} icon={s.icon} accent={s.accent} />
+            </Reveal>
+          ))}
+        </Box>
+      )}
+
+      {/* ── Hall map ── */}
+      <Box component="section" aria-labelledby="hall-title" sx={{ mb: { xs: 7, md: 10 } }}>
+        <SectionHeader index={1} label="Схема залу" title={<span id="hall-title">Обери своє місце</span>} subtitle="Наведи на ПК, щоб побачити характеристики. Клікни — щоб обрати. Статус оновлюється кожні 30 секунд." size="md" />
+
+        {computers.length === 0 ? (
+          <GlassCard><EmptyState art="pc" compact title="У цьому клубі ще немає комп'ютерів" /></GlassCard>
+        ) : (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 320px' }, gap: 2.5, alignItems: 'start' }}>
+            <GlassCard strong sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+              <HallMap computers={computers} busyIds={busyIds} selectedId={selectedId} onSelect={(pc) => setSelectedId(pc.id)} />
+            </GlassCard>
+
+            {/* Selected seat panel */}
+            <GlassCard hud={Boolean(selected)} accent={cr.cyan} strong sx={{ p: 2.5, position: { lg: 'sticky' }, top: { lg: 96 } }} aria-live="polite">
+              {!selected ? (
+                <EmptyState compact art="pc" title="Місце не обрано" text="Клікни на будь-який ПК на схемі залу." sx={{ py: 3 }} />
+              ) : (
+                <Box key={selected.id} sx={{ animation: 'cr-fade-up 300ms var(--cr-ease)' }}>
+                  <Typography sx={capsLabel}>// Обране місце</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mt: 1, mb: 2 }}>
+                    <Mono sx={{ fontSize: '1.5rem', fontWeight: 700, color: cr.text, textShadow: cr.glowCyan }}>{selected.name}</Mono>
+                    <Box sx={{ display: 'flex', gap: 0.75 }}>
+                      {isVip(selected) && <StatusBadge status="vip" pulse={false} />}
+                      <StatusBadge status={selectedStatus} />
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                    {parseSpecs(selected.description).map((s, i) => (
+                      <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderRadius: '10px', bgcolor: tint(s.color, 7), border: `1px solid ${tint(s.color, 22)}` }}>
+                        <Mono sx={{ fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.1em', color: s.text, width: 36 }}>{s.kind}</Mono>
+                        <Typography sx={{ fontSize: '0.86rem', fontWeight: 600, color: cr.text }}>{s.label}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                  {selected.price_per_hour && (
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2.5, pt: 2, borderTop: `1px dashed ${cr.border}` }}>
+                      <Typography sx={capsLabel}>Тариф</Typography>
+                      <Mono sx={{ fontSize: '1.4rem', fontWeight: 700, color: cr.text }}>₴{Number(selected.price_per_hour).toFixed(0)}<Box component="span" sx={{ fontSize: '0.8rem', color: cr.muted }}>/год</Box></Mono>
+                    </Box>
+                  )}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button variant="contained" fullWidth disabled={selectedStatus !== 'free'} onClick={() => openQuickBook(selected)}>
+                      {selectedStatus === 'free' ? 'Забронювати' : STATUS[selectedStatus].label}
+                    </Button>
+                    <IconButton aria-label={`Детальніше про ${selected.name}`} onClick={() => navigate(`/computers/${selected.id}`)} sx={{ border: `1px solid ${cr.borderStrong}`, borderRadius: '12px', color: cr.primaryText }}>
+                      <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              )}
+            </GlassCard>
           </Box>
         )}
+      </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-          <LocationOnIcon sx={{ fontSize: 16, color: '#a855f7' }} />
-          <Typography color="text.secondary">{club.address}</Typography>
-        </Box>
-
-        <Typography color="text.secondary" sx={{ mb: 3, maxWidth: 600 }}>{club.description}</Typography>
-
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Вільних',    value: freeCount,        color: '#10b981' },
-            { label: 'Зайнятих',   value: busyCount,        color: '#ef4444' },
-            { label: 'Тех. огляд', value: maintenanceCount, color: '#f59e0b' },
-            { label: 'Всього',     value: computers.length, color: '#a855f7' },
-          ].map((s) => (
-            <Box key={s.label} sx={(theme) => ({
-              px: 3, py: 1.5, borderRadius: 2, textAlign: 'center', minWidth: 90,
-              background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-              border: `1px solid ${s.color}33`,
-            })}>
-              <Typography variant="h5" fontWeight={700} sx={{ color: s.color }}>{s.value}</Typography>
-              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+      {/* ── Reviews ── */}
+      <Box component="section" aria-labelledby="reviews-title">
+        <SectionHeader
+          index={2}
+          label="Відгуки"
+          size="md"
+          title={<span id="reviews-title">Що кажуть гравці</span>}
+          action={reviews.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Mono sx={{ fontSize: '2rem', fontWeight: 700, color: cr.text, lineHeight: 1 }}>{avgRating.toFixed(1)}</Mono>
+              <Box>
+                <Rating value={avgRating} precision={0.5} readOnly size="small" />
+                <Typography sx={{ fontSize: '0.78rem', color: cr.muted }}>{reviews.length} відгук{reviews.length < 5 ? 'и' : 'ів'}</Typography>
+              </Box>
             </Box>
+          )}
+        />
+
+        {isAuthenticated && !hasReviewed && (
+          <GlassCard component="form" onSubmit={handleSubmitReview} sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
+            <Typography variant="h6" component="h3" sx={{ mb: 2 }}>Залишити відгук</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Typography component="span" id="review-rating-l" sx={capsLabel}>Оцінка</Typography>
+              <Rating value={reviewRating} onChange={(_, v) => setReviewRating(v)} aria-labelledby="review-rating-l" />
+            </Box>
+            <TextField fullWidth multiline rows={3} label="Коментар (необов'язково)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} sx={{ mb: 2 }} />
+            {reviewError && <Alert severity="error" sx={{ mb: 2 }}>{reviewError}</Alert>}
+            <Button type="submit" variant="contained" loading={reviewLoading}>{reviewLoading ? 'Збереження...' : 'Опублікувати відгук'}</Button>
+          </GlassCard>
+        )}
+
+        {reviews.length === 0 && (
+          <GlassCard>
+            <EmptyState compact art="calendar" title="Відгуків ще немає" text={isAuthenticated ? 'Будьте першим, хто залишить відгук!' : 'Увійдіть, щоб залишити перший відгук.'} />
+          </GlassCard>
+        )}
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+          {reviews.map((review, i) => (
+            <Reveal key={review.id} delay={(i % 2) * 80}>
+              <GlassCard sx={{ p: 2.5, height: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                    <Box sx={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontFamily: font.display, fontSize: 14, fontWeight: 700, color: cr.text, bgcolor: cr.surface, border: `2px solid ${cr.primary2}`, boxShadow: cr.glowSm }}>
+                      {(review.username || 'U').charAt(0).toUpperCase()}
+                    </Box>
+                    <Typography fontWeight={700} noWrap>{review.username || 'Користувач'}</Typography>
+                  </Box>
+                  <Mono sx={{ fontSize: '0.72rem', color: cr.faint, flexShrink: 0 }}>{new Date(review.created_at).toLocaleDateString('uk-UA')}</Mono>
+                </Box>
+                <Rating value={review.rating} readOnly size="small" sx={{ mb: 0.75 }} />
+                {review.comment && <Typography variant="body2" sx={{ color: cr.muted, lineHeight: 1.7 }}>{review.comment}</Typography>}
+              </GlassCard>
+            </Reveal>
           ))}
         </Box>
       </Box>
 
-      <Divider sx={{ mb: 4 }} />
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>Комп'ютери клубу</Typography>
-
-      {computers.length === 0 && <Typography color="text.secondary">У цьому клубі ще немає комп'ютерів</Typography>}
-
-      <Grid container spacing={2}>
-        {computers.map((computer) => {
-          const status = !computer.is_active ? 'maintenance' : busyIds.has(computer.id) ? 'busy' : 'free'
-          const cfg = STATUS_CONFIG[status]
-          const canBook = status === 'free'
-          return (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={computer.id}>
-              <Card sx={{
-                height: '100%', display: 'flex', flexDirection: 'column',
-                transition: 'transform 0.2s,box-shadow 0.2s', opacity: canBook ? 1 : 0.65,
-                ...(canBook && { '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 6px 24px rgba(147,51,234,0.2)', borderColor: 'rgba(147,51,234,0.5)' } }),
-              }}>
-                <Box sx={{ px: 2, py: 1.5, background: cfg.bg, borderBottom: `1px solid ${cfg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ComputerIcon sx={{ fontSize: 18, color: cfg.color }} />
-                    <Typography variant="subtitle2" fontWeight={700}>{computer.name}</Typography>
-                  </Box>
-                  <Chip icon={cfg.icon} label={cfg.label} size="small" sx={{ bgcolor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontSize: '0.7rem', height: 22, '& .MuiChip-icon': { color: cfg.color } }} />
-                </Box>
-                <CardContent sx={{ flexGrow: 1, py: 1.5 }}>
-                  {/* Spec badges */}
-                  {computer.description && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-                      {parseSpecs(computer.description).map((spec, i) => (
-                        <Box key={i} sx={{
-                          px: 1, py: 0.2, borderRadius: 1, fontSize: '0.67rem', fontWeight: 600,
-                          color: spec.color, bgcolor: spec.bg, border: `1px solid ${spec.border}`,
-                          lineHeight: 1.6, whiteSpace: 'nowrap',
-                        }}>
-                          {spec.label}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
-                  {computer.price_per_hour && (
-                    <Typography variant="body2" fontWeight={700} sx={{ color: '#a855f7', fontSize: '0.85rem' }}>
-                      ₴{Number(computer.price_per_hour).toFixed(0)}/год
-                    </Typography>
-                  )}
-                </CardContent>
-                <CardActions sx={{ px: 2, pb: 2, gap: 1 }}>
-                  <Button variant={canBook ? 'contained' : 'outlined'} size="small" fullWidth
-                    onClick={() => canBook ? openQuickBook(computer) : null}
-                    disabled={!canBook}
-                    sx={!canBook ? { borderColor: 'rgba(255,255,255,0.1)', color: 'text.disabled' } : {}}>
-                    {canBook ? 'Забронювати' : cfg.label}
-                  </Button>
-                  <Button variant="outlined" size="small" onClick={() => navigate(`/computers/${computer.id}`)}
-                    sx={{ flexShrink: 0, minWidth: 'auto', px: 1, borderColor: 'rgba(147,51,234,0.3)', color: '#a855f7' }}>
-                    <OpenInNewIcon sx={{ fontSize: 16 }} />
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          )
-        })}
-      </Grid>
-
-      {/* Reviews */}
-      <Divider sx={{ my: 5 }} />
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
-        Відгуки
-        {reviews.length > 0 && (
-          <Box component="span" sx={{ ml: 2 }}>
-            <Rating value={avgRating} precision={0.5} readOnly size="small" sx={{ verticalAlign: 'middle', '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              {avgRating.toFixed(1)} · {reviews.length} відгук{reviews.length < 5 ? 'и' : 'ів'}
+      {/* ── Booking dialog (stepper) ── */}
+      <Dialog open={Boolean(quickTarget)} onClose={closeQuickBook} maxWidth="sm" fullWidth aria-labelledby="qb-title">
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, pt: 2.5 }}>
+          <Box>
+            <Typography sx={capsLabel}>BOOKING://NEW</Typography>
+            <Typography id="qb-title" component="h2" sx={{ fontFamily: font.display, fontWeight: 700, fontSize: '1.2rem' }}>
+              Бронювання <Mono sx={{ color: cr.primaryText }}>{quickTarget?.name}</Mono>
             </Typography>
           </Box>
-        )}
-      </Typography>
-
-      {isAuthenticated && !hasReviewed && (
-        <Box component="form" onSubmit={handleSubmitReview} sx={(theme) => ({ p: 3, mb: 4, borderRadius: 2, background: theme.palette.mode === 'dark' ? 'rgba(147,51,234,0.05)' : 'rgba(147,51,234,0.04)', border: '1px solid rgba(147,51,234,0.2)' })}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Залишити відгук</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography variant="body2" color="text.secondary">Оцінка:</Typography>
-            <Rating value={reviewRating} onChange={(_, v) => setReviewRating(v)} icon={<StarIcon sx={{ color: '#f59e0b' }} />} />
-          </Box>
-          <TextField fullWidth multiline rows={3} label="Коментар (необов'язково)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} sx={{ mb: 2 }} />
-          {reviewError && <Alert severity="error" sx={{ mb: 2 }}>{reviewError}</Alert>}
-          <Button type="submit" variant="contained" disabled={reviewLoading}>{reviewLoading ? 'Збереження...' : 'Опублікувати відгук'}</Button>
+          <IconButton size="small" onClick={closeQuickBook} aria-label="Закрити"><CloseIcon /></IconButton>
         </Box>
-      )}
+        <DialogContent sx={{ pt: 2.5 }}>
+          <HudStepper steps={BOOKING_STEPS} active={qbStep} sx={{ mb: 3 }} />
 
-      {reviews.length === 0 && <Typography color="text.secondary">{isAuthenticated ? 'Будьте першим, хто залишить відгук!' : 'Відгуків ще немає.'}</Typography>}
-
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {reviews.map((review) => (
-          <Box key={review.id} sx={(theme) => ({ p: 2.5, borderRadius: 2, background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#faf7ff', border: '1px solid rgba(147,51,234,0.12)' })}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                  {(review.username || 'U').charAt(0).toUpperCase()}
-                </Box>
-                <Typography variant="subtitle2" fontWeight={600}>{review.username || 'Користувач'}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Rating value={review.rating} readOnly size="small" sx={{ '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
-                <Typography variant="caption" color="text.disabled">{new Date(review.created_at).toLocaleDateString('uk-UA')}</Typography>
-              </Box>
-            </Box>
-            {review.comment && <Typography variant="body2" color="text.secondary">{review.comment}</Typography>}
-          </Box>
-        ))}
-      </Box>
-
-      {/* Quick Booking Dialog */}
-      <Dialog open={Boolean(quickTarget)} onClose={closeQuickBook} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
-          <Box>
-            <Typography variant="subtitle1" fontWeight={700}>Бронювання</Typography>
-            <Typography variant="body2" color="text.secondary">{quickTarget?.name}</Typography>
-          </Box>
-          <IconButton size="small" onClick={closeQuickBook}><CloseIcon /></IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
           {qbSuccess ? (
-            <Alert severity="success" sx={{ bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
-              Бронювання успішно створено!{' '}
-              <Link component={RouterLink} to="/bookings" sx={{ color: '#10b981', fontWeight: 600 }}>Мої бронювання</Link>
-            </Alert>
+            <AccessGranted
+              pcName={quickTarget?.name}
+              when={qbStart?.isValid() && qbEnd?.isValid() ? `${qbStart.format('D MMM, HH:mm')} → ${qbEnd.format('HH:mm')}` : null}
+              onClose={closeQuickBook}
+            />
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
               {!isAuthenticated && (
-                <Alert severity="info" sx={{ bgcolor: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8' }}>
-                  <Link component={RouterLink} to="/login" sx={{ color: '#a855f7' }}>Увійдіть</Link> для бронювання
+                <Alert severity="info">
+                  <Link component={RouterLink} to="/login">Увійдіть</Link> для бронювання
                 </Alert>
               )}
 
-              <DateTimePicker label="Початок сесії" value={qbStart} onChange={handleQbStartChange}
-                minDateTime={dayjs()} minutesStep={15} ampm={false} sx={pickerSx}
-                slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
+              {qbStep === 1 && (
+                <>
+                  <DatePicker label="Дата" value={qbDate} onChange={handleQbDateChange} minDate={dayjs()} slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
 
-              {qbStart?.isValid() && (
-                <Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                    <AccessTimeIcon sx={{ fontSize: 14, color: '#a855f7' }} />
-                    <Typography variant="body2" fontWeight={600}>Тривалість</Typography>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
+                      <AccessTimeIcon sx={{ fontSize: 15, color: cr.primaryText }} />
+                      <Typography sx={capsLabel}>Час початку</Typography>
+                    </Box>
+                    <TimeSlotGrid date={qbDate} value={qbStart} onChange={handleQbStartChange} busyKeys={qbBusyKeys} />
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    {QUICK_DURATIONS.map((d) => {
-                      const target = qbStart.add(d.minutes, 'minute')
-                      const selected = qbEnd?.isValid() && qbEnd.isSame(target, 'minute')
-                      return (
-                        <Button key={d.label} size="small" variant={selected ? 'contained' : 'outlined'}
-                          onClick={() => { setQbEnd(target); setQbAvailability(null); setQbError('') }}
-                          sx={{ flex: 1, ...(selected ? {} : { borderColor: 'rgba(147,51,234,0.4)', color: 'text.secondary' }) }}>
-                          {d.label}
-                        </Button>
-                      )
-                    })}
-                  </Box>
-                </Box>
-              )}
 
-              <DateTimePicker label="Кінець сесії" value={qbEnd}
-                onChange={(v) => { setQbEnd(v); setQbAvailability(null); setQbError('') }}
-                minDateTime={qbStart?.isValid() ? qbStart.add(30, 'minute') : dayjs()}
-                minutesStep={15} ampm={false} sx={pickerSx}
-                slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
-
-              {qbTimeValid && (
-                <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(147,51,234,0.06)', border: '1px solid rgba(147,51,234,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">{qbDurationLabel}</Typography>
-                  {qbEstCost && (
-                    <Box sx={{ textAlign: 'right' }}>
-                      {qbDiscountPct > 0 ? (
-                        <>
-                          <Typography variant="caption" color="text.disabled" sx={{ textDecoration: 'line-through', display: 'block' }}>₴{qbEstCost}</Typography>
-                          <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>₴{qbDiscountedCost} <Typography component="span" variant="caption" sx={{ color: '#10b981' }}>-{qbDiscountPct}%</Typography></Typography>
-                        </>
-                      ) : (
-                        <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>≈ ₴{qbEstCost}</Typography>
-                      )}
+                  {qbStart?.isValid() && (
+                    <Box>
+                      <Typography sx={{ ...capsLabel, mb: 1 }}>Тривалість</Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        {QUICK_DURATIONS.map((d) => {
+                          const target = qbStart.add(d.minutes, 'minute')
+                          const isSel = qbEnd?.isValid() && qbEnd.isSame(target, 'minute')
+                          return (
+                            <Button key={d.label} size="small" variant={isSel ? 'contained' : 'outlined'} aria-pressed={isSel}
+                              onClick={() => { setQbEnd(target); setQbAvailability(null); setQbError('') }}
+                              sx={{ flex: 1, fontFamily: font.mono }}>
+                              {d.label}
+                            </Button>
+                          )
+                        })}
+                      </Box>
                     </Box>
                   )}
-                </Box>
-              )}
 
-              {qbTimeValid && (
-                <Box>
-                  <Button size="small" startIcon={<LocalOfferIcon sx={{ fontSize: 14 }} />}
-                    onClick={() => setQbShowPromo((v) => !v)}
-                    sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' }, p: 0, fontSize: '0.8rem' }}>
-                    {qbShowPromo ? 'Приховати промо-код' : 'Є промо-код?'}
-                  </Button>
-                  <Collapse in={qbShowPromo}>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mt: 1 }}>
-                      <TextField size="small" label="Промо-код" value={qbPromoCode}
-                        onChange={(e) => { setQbPromoCode(e.target.value.toUpperCase()); setQbPromoResult(null) }}
-                        sx={{ flex: 1, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: 'rgba(147,51,234,0.35)' }, '&:hover fieldset': { borderColor: '#9333ea' } } }}
-                      />
-                      <Button variant="outlined" size="small" onClick={handleQbValidatePromo}
-                        disabled={qbPromoValidating || !qbPromoCode.trim()}
-                        sx={{ height: 40, flexShrink: 0, borderColor: 'rgba(147,51,234,0.4)', color: '#a855f7' }}>
-                        {qbPromoValidating ? <CircularProgress size={14} /> : 'OK'}
-                      </Button>
+                  <DateTimePicker label="Кінець сесії" value={qbEnd}
+                    onChange={(v) => { setQbEnd(v); setQbAvailability(null); setQbError('') }}
+                    minDateTime={qbStart?.isValid() ? qbStart.add(30, 'minute') : dayjs()}
+                    minutesStep={15} ampm={false}
+                    slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
+
+                  {qbTimeValid && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, borderRadius: '12px', bgcolor: tint(cr.primary, 8), border: `1px solid ${cr.border}` }}>
+                      <Mono sx={{ fontSize: '0.85rem', color: cr.muted }}>{qbStart.format('HH:mm')} → {qbEnd.format('HH:mm')} · {qbDurationLabel}</Mono>
+                      {qbEstCost && <Mono sx={{ fontWeight: 700, color: cr.successText }}>≈ ₴{qbEstCost}</Mono>}
                     </Box>
-                    {qbPromoResult && (
-                      <Alert severity={qbPromoResult.valid ? 'success' : 'error'} sx={{ mt: 1, py: 0.5,
-                        ...(qbPromoResult.valid ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' } : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' })
-                      }}>
-                        {qbPromoResult.valid ? `Знижка ${qbPromoResult.discount_percent}% застосована!` : qbPromoResult.message || 'Невірний код'}
-                      </Alert>
+                  )}
+
+                  {qbAvailability && !qbAvailability.available && (
+                    <Alert severity="warning">Час зайнятий. Оберіть інший слот.</Alert>
+                  )}
+                  {qbError && <Alert severity="error">{qbError}</Alert>}
+
+                  <Button variant="contained" size="large" fullWidth disabled={!qbTimeValid} loading={qbChecking} onClick={handleQbCheck} endIcon={<ArrowForwardIcon />}>
+                    {qbChecking ? 'Перевірка...' : 'Перевірити доступність'}
+                  </Button>
+                </>
+              )}
+
+              {qbStep === 2 && (
+                <>
+                  <Alert severity="success">Вільний на обраний час!</Alert>
+
+                  <BookingSummary
+                    pcName={quickTarget?.name}
+                    clubName={club.name}
+                    start={qbStart}
+                    end={qbEnd}
+                    durationLabel={qbDurationLabel}
+                    pricePerHour={quickTarget?.price_per_hour}
+                    baseCost={qbEstCost}
+                    discountPct={qbDiscountPct}
+                    finalCost={qbDiscountedCost ?? qbEstCost}
+                  />
+
+                  <Box>
+                    <Button size="small" startIcon={<LocalOfferIcon sx={{ fontSize: 14 }} />} onClick={() => setQbShowPromo((v) => !v)} aria-expanded={qbShowPromo}>
+                      {qbShowPromo ? 'Приховати промо-код' : 'Є промо-код?'}
+                    </Button>
+                    <Collapse in={qbShowPromo}>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mt: 1.5 }}>
+                        <TextField size="small" label="Промо-код" value={qbPromoCode}
+                          onChange={(e) => { setQbPromoCode(e.target.value.toUpperCase()); setQbPromoResult(null) }}
+                          inputProps={{ style: { fontFamily: 'var(--cr-font-mono)', letterSpacing: '0.12em' } }}
+                          sx={{ flex: 1 }} />
+                        <Button variant="outlined" onClick={handleQbValidatePromo} loading={qbPromoValidating} disabled={!qbPromoCode.trim()} sx={{ height: 40, flexShrink: 0 }}>
+                          OK
+                        </Button>
+                      </Box>
+                      {qbPromoResult && (
+                        <Alert severity={qbPromoResult.valid ? 'success' : 'error'} sx={{ mt: 1, py: 0.25 }}>
+                          {qbPromoResult.valid ? `Знижка ${qbPromoResult.discount_percent}% застосована!` : qbPromoResult.message || 'Невірний код'}
+                        </Alert>
+                      )}
+                    </Collapse>
+                  </Box>
+
+                  {qbError && <Alert severity="error">{qbError}</Alert>}
+
+                  <Box sx={{ display: 'flex', gap: 1.25, flexDirection: { xs: 'column-reverse', sm: 'row' } }}>
+                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setQbAvailability(null)} sx={{ flexShrink: 0 }}>Назад</Button>
+                    {isAuthenticated && (
+                      <Button variant="contained" fullWidth size="large" onClick={handleQbBook} loading={qbBooking}>
+                        {qbBooking ? 'Бронювання...' : `Забронювати${qbDiscountedCost ? ` · ₴${qbDiscountedCost}` : qbEstCost ? ` · ₴${qbEstCost}` : ''}`}
+                      </Button>
                     )}
-                  </Collapse>
-                </Box>
-              )}
-
-              {qbError && <Alert severity="error" sx={{ bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}>{qbError}</Alert>}
-
-              {qbAvailability && (
-                <Alert severity={qbAvailability.available ? 'success' : 'warning'}
-                  sx={qbAvailability.available
-                    ? { bgcolor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }
-                    : { bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}>
-                  {qbAvailability.available ? "Вільний на обраний час!" : 'Час зайнятий. Оберіть інший.'}
-                </Alert>
-              )}
-
-              <Button variant="outlined" fullWidth disabled={!qbTimeValid || qbChecking} onClick={handleQbCheck}
-                startIcon={qbChecking ? <CircularProgress size={14} color="inherit" /> : null}>
-                {qbChecking ? 'Перевірка...' : 'Перевірити доступність'}
-              </Button>
-
-              {isAuthenticated && qbAvailability?.available && (
-                <Button variant="contained" fullWidth size="large" onClick={handleQbBook} disabled={qbBooking}
-                  startIcon={qbBooking ? <CircularProgress size={14} color="inherit" /> : null}>
-                  {qbBooking ? 'Бронювання...' : `Забронювати${qbDiscountedCost ? ` · ₴${qbDiscountedCost}` : qbEstCost ? ` · ₴${qbEstCost}` : ''}`}
-                </Button>
+                  </Box>
+                </>
               )}
             </Box>
           )}

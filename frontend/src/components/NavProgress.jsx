@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Box } from '@mui/material'
+import { cr, tint } from '../design/tokens'
 
 const NavProgress = () => {
   const location = useLocation()
@@ -29,10 +30,10 @@ const NavProgress = () => {
       zIndex: 9999,
       height: 3,
       width: `${width}%`,
-      background: 'linear-gradient(90deg, #7c3aed 0%, #a855f7 40%, #06b6d4 100%)',
-      boxShadow: '0 0 8px rgba(168,85,247,0.9), 0 0 20px rgba(168,85,247,0.4)',
+      background: `linear-gradient(90deg, ${cr.primary} 0%, ${cr.primary2} 40%, ${cr.cyan} 100%)`,
+      boxShadow: `0 0 8px ${tint(cr.primary2, 90)}, 0 0 20px ${tint(cr.cyan, 40)}`,
       borderRadius: '0 3px 3px 0',
-      transition: width === 0 ? 'none' : 'width 0.35s cubic-bezier(0.4,0,0.2,1)',
+      transition: width === 0 ? 'none' : 'width 0.35s var(--cr-ease)',
       '&::after': {
         content: '""',
         position: 'absolute',
@@ -40,8 +41,8 @@ const NavProgress = () => {
         transform: 'translateY(-50%)',
         width: 6, height: 6,
         borderRadius: '50%',
-        bgcolor: '#a855f7',
-        boxShadow: '0 0 10px #a855f7, 0 0 20px #a855f7',
+        bgcolor: cr.cyan,
+        boxShadow: `0 0 10px ${cr.cyan}, 0 0 20px ${cr.cyan}`,
       },
     }} />
   )

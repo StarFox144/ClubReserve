@@ -1,26 +1,21 @@
 import {
-  Alert, Box, Button, Card, CardActions, CardContent, Chip,
-  FormControl, Grid, InputAdornment, InputLabel,
+  Alert, Box, Button, FormControl, InputAdornment, InputLabel,
   MenuItem, Rating, Select, Skeleton, TextField, Typography,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import SearchIcon from '@mui/icons-material/Search'
-import StorefrontIcon from '@mui/icons-material/Storefront'
-import SortIcon from '@mui/icons-material/Sort'
-import { usePageTitle } from '../hooks/usePageTitle'
+import StarIcon from '@mui/icons-material/Star'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import FilterAltOffIcon from '@mui/icons-material/FilterAltOff'
+import TuneIcon from '@mui/icons-material/Tune'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect, useMemo } from 'react'
 import { getClubs } from '../api/clubs'
-
-const CLUB_GRADIENTS = [
-  'linear-gradient(135deg,#1a0a2e 0%,#2d1b69 100%)',
-  'linear-gradient(135deg,#0a1628 0%,#1e3a5f 100%)',
-  'linear-gradient(135deg,#1a0a1e 0%,#4a1942 100%)',
-  'linear-gradient(135deg,#0a1a0a 0%,#1a3a2a 100%)',
-  'linear-gradient(135deg,#1a1a0a 0%,#3a2a0a 100%)',
-  'linear-gradient(135deg,#0a0a1a 0%,#1a2a4a 100%)',
-]
+import { cr, font, tint } from '../design/tokens'
+import { EmptyState, GlassCard, Mono, Reveal, SectionHeader, StatusBadge } from '../components/ui'
+import ClubBanner from '../components/club/ClubBanner'
+import { cityOf } from '../components/club/clubUtils'
 
 const MAX_PRICE_OPTIONS = [
   { label: 'Будь-яка', value: 0 },
@@ -29,42 +24,19 @@ const MAX_PRICE_OPTIONS = [
   { label: 'до ₴100/год', value: 100 },
 ]
 
-// Circuit board SVG tile (data URI)
-const CIRCUIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-  <line x1="0" y1="15" x2="32" y2="15" stroke="#a855f7" stroke-width="0.8" opacity="0.4"/>
-  <line x1="48" y1="15" x2="80" y2="15" stroke="#a855f7" stroke-width="0.8" opacity="0.4"/>
-  <line x1="0" y1="55" x2="22" y2="55" stroke="#6366f1" stroke-width="0.8" opacity="0.35"/>
-  <line x1="58" y1="55" x2="80" y2="55" stroke="#6366f1" stroke-width="0.8" opacity="0.35"/>
-  <line x1="40" y1="0" x2="40" y2="28" stroke="#818cf8" stroke-width="0.8" opacity="0.35"/>
-  <line x1="40" y1="52" x2="40" y2="80" stroke="#818cf8" stroke-width="0.8" opacity="0.35"/>
-  <line x1="20" y1="28" x2="20" y2="80" stroke="#06b6d4" stroke-width="0.7" opacity="0.25"/>
-  <path d="M0,35 L14,35 L14,55" fill="none" stroke="#a855f7" stroke-width="0.8" opacity="0.3"/>
-  <path d="M62,15 L62,0" fill="none" stroke="#6366f1" stroke-width="0.7" opacity="0.3"/>
-  <path d="M62,35 L80,35" fill="none" stroke="#818cf8" stroke-width="0.7" opacity="0.25"/>
-  <circle cx="40" cy="15" r="2.5" fill="#a855f7" opacity="0.65"/>
-  <circle cx="40" cy="55" r="2" fill="#818cf8" opacity="0.55"/>
-  <circle cx="20" cy="55" r="2.5" fill="#6366f1" opacity="0.6"/>
-  <circle cx="62" cy="15" r="2" fill="#a855f7" opacity="0.45"/>
-  <circle cx="14" cy="35" r="1.5" fill="#06b6d4" opacity="0.55"/>
-  <circle cx="62" cy="55" r="3" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.35"/>
-  <circle cx="20" cy="28" r="2.5" fill="none" stroke="#6366f1" stroke-width="1" opacity="0.3"/>
-</svg>`
-const CIRCUIT_BG = `url("data:image/svg+xml,${encodeURIComponent(CIRCUIT_SVG)}")`
-
 const ClubCardSkeleton = () => (
-  <Card sx={{ height: '100%' }}>
-    <Skeleton variant="rectangular" height={110} />
-    <CardContent>
+  <GlassCard sx={{ overflow: 'hidden', height: '100%' }}>
+    <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 0 }} />
+    <Box sx={{ p: 2.5 }}>
       <Skeleton variant="text" width="60%" height={32} sx={{ mb: 1 }} />
       <Skeleton variant="text" width="80%" />
       <Skeleton variant="text" width="90%" />
-      <Skeleton variant="text" width="50%" />
-    </CardContent>
-    <CardActions sx={{ px: 2, pb: 2 }}>
-      <Skeleton variant="rounded" width="100%" height={36} />
-    </CardActions>
-  </Card>
+      <Skeleton variant="rounded" width="100%" height={42} sx={{ mt: 2 }} />
+    </Box>
+  </GlassCard>
 )
+
+const gridSx = { display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: { xs: 2, md: 3 } }
 
 const ClubsPage = () => {
   usePageTitle('Клуби')
@@ -76,6 +48,7 @@ const ClubsPage = () => {
   const [sort, setSort] = useState('name')
   const [minRating, setMinRating] = useState(0)
   const [maxPrice, setMaxPrice] = useState(0)
+  const [city, setCity] = useState('')
 
   useEffect(() => {
     getClubs()
@@ -84,7 +57,8 @@ const ClubsPage = () => {
       .finally(() => setLoading(false))
   }, [])
 
-  const hasFilters = minRating > 0 || maxPrice > 0
+  const cities = useMemo(() => [...new Set(clubs.map(cityOf).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [clubs])
+  const hasFilters = minRating > 0 || maxPrice > 0 || Boolean(city)
 
   const filtered = useMemo(() => {
     let result = clubs.filter((c) => {
@@ -95,177 +69,161 @@ const ClubsPage = () => {
         (c.description || '').toLowerCase().includes(q)
       const matchRating = minRating === 0 || (c.avg_rating != null && c.avg_rating >= minRating)
       const matchPrice = maxPrice === 0 || c.min_price == null || c.min_price <= maxPrice
-      return matchSearch && matchRating && matchPrice
+      const matchCity = !city || cityOf(c) === city
+      return matchSearch && matchRating && matchPrice && matchCity
     })
     if (sort === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name))
     if (sort === 'newest') result = [...result].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     if (sort === 'rating') result = [...result].sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0))
     return result
-  }, [clubs, search, sort, minRating, maxPrice])
+  }, [clubs, search, sort, minRating, maxPrice, city])
 
-  if (loading) {
-    return (
-      <Box>
-        <Skeleton variant="text" width={280} height={48} sx={{ mb: 1 }} />
-        <Skeleton variant="text" width={160} sx={{ mb: 3 }} />
-        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-          <Skeleton variant="rounded" width={320} height={40} />
-          <Skeleton variant="rounded" width={160} height={40} />
-        </Box>
-        <Grid container spacing={3}>
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Grid item xs={12} sm={6} md={4} key={i}><ClubCardSkeleton /></Grid>
-          ))}
-        </Grid>
-      </Box>
-    )
-  }
+  const resetFilters = () => { setMinRating(0); setMaxPrice(0); setCity('') }
 
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom sx={{
-          background: 'linear-gradient(135deg,#e2e8f0,#a855f7)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        }}>
-          Комп'ютерні клуби
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          {clubs.length} {clubs.length === 1 ? 'клуб' : 'клубів'} доступно
-        </Typography>
+      <SectionHeader
+        component="h1"
+        label="Каталог"
+        title="Комп'ютерні клуби"
+        subtitle={loading ? 'Сканування мережі клубів…' : `${clubs.length} ${clubs.length === 1 ? 'клуб' : 'клубів'} онлайн. Обери свій і забронюй місце на схемі залу.`}
+        size="md"
+      />
 
-        {/* Search + Sort */}
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+      {/* ── Filters ── */}
+      <GlassCard strong sx={{ p: { xs: 2, md: 2.5 }, mb: 4 }} role="search" aria-label="Фільтри клубів">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <TuneIcon sx={{ fontSize: 18, color: cr.cyanText }} />
+          <Typography sx={{ fontFamily: font.mono, fontSize: '0.7rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: cr.muted }}>Фільтри</Typography>
+          {(hasFilters || search) && (
+            <Button size="small" startIcon={<FilterAltOffIcon />} onClick={() => { resetFilters(); setSearch('') }} sx={{ ml: 'auto' }}>
+              Скинути
+            </Button>
+          )}
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: '2fr repeat(3, 1fr)' }, gap: 2, alignItems: 'center' }}>
           <TextField
-            placeholder="Пошук за назвою, адресою..."
+            placeholder="Назва, адреса, опис…"
+            label="Пошук"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ flexGrow: 1, minWidth: 220, maxWidth: 400 }}
             size="small"
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
-            }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            sx={{ gridColumn: { sm: 'span 2', md: 'auto' } }}
           />
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel>Сортування</InputLabel>
-            <Select value={sort} label="Сортування" onChange={(e) => setSort(e.target.value)}
-              startAdornment={<SortIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 18 }} />}>
+          <FormControl size="small">
+            <InputLabel id="city-l">Місто</InputLabel>
+            <Select labelId="city-l" value={city} label="Місто" onChange={(e) => setCity(e.target.value)}>
+              <MenuItem value="">Усі міста</MenuItem>
+              {cities.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel id="price-l">Ціна</InputLabel>
+            <Select labelId="price-l" value={maxPrice} label="Ціна" onChange={(e) => setMaxPrice(e.target.value)}>
+              {MAX_PRICE_OPTIONS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel id="sort-l">Сортування</InputLabel>
+            <Select labelId="sort-l" value={sort} label="Сортування" onChange={(e) => setSort(e.target.value)}>
               <MenuItem value="name">За назвою</MenuItem>
               <MenuItem value="newest">Найновіші</MenuItem>
               <MenuItem value="rating">За рейтингом</MenuItem>
             </Select>
           </FormControl>
         </Box>
-
-        {/* Filters row */}
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">Мін. рейтинг:</Typography>
-            <Rating
-              value={minRating}
-              onChange={(_, v) => setMinRating(v ?? 0)}
-              size="small"
-              sx={{ '& .MuiRating-iconFilled': { color: '#f59e0b' }, '& .MuiRating-iconEmpty': { color: 'rgba(245,158,11,0.3)' } }}
-            />
-            {minRating > 0 && (
-              <Typography variant="caption" sx={{ color: '#a855f7' }}>від {minRating}★</Typography>
-            )}
-          </Box>
-
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Макс. ціна</InputLabel>
-            <Select value={maxPrice} label="Макс. ціна" onChange={(e) => setMaxPrice(e.target.value)}>
-              {MAX_PRICE_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {hasFilters && (
-            <Button
-              size="small"
-              startIcon={<FilterAltOffIcon />}
-              onClick={() => { setMinRating(0); setMaxPrice(0) }}
-              sx={{ color: 'text.secondary', '&:hover': { color: '#a855f7' } }}
-            >
-              Скинути фільтри
-            </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 2, flexWrap: 'wrap' }}>
+          <Typography component="span" id="rating-l" sx={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: cr.muted }}>Мін. рейтинг</Typography>
+          <Rating value={minRating} onChange={(_, v) => setMinRating(v ?? 0)} size="small" aria-labelledby="rating-l" />
+          {minRating > 0 && <Mono sx={{ fontSize: '0.78rem', color: cr.vipText }}>≥ {minRating}.0</Mono>}
+          {search && (
+            <Mono sx={{ ml: 'auto', fontSize: '0.78rem', color: cr.muted }}>
+              знайдено: <Box component="span" sx={{ color: cr.cyanText }}>{filtered.length}</Box>
+            </Mono>
           )}
         </Box>
-      </Box>
+      </GlassCard>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {search && (
-        <Typography color="text.secondary" sx={{ mb: 2, fontSize: '0.875rem' }}>
-          Знайдено: {filtered.length} клуб{filtered.length !== 1 ? 'ів' : ''}
-        </Typography>
-      )}
+      {loading ? (
+        <Box sx={gridSx}>
+          {[1, 2, 3, 4, 5, 6].map((i) => <ClubCardSkeleton key={i} />)}
+        </Box>
+      ) : filtered.length === 0 ? (
+        <GlassCard>
+          <EmptyState
+            art="search"
+            title="Клубів не знайдено"
+            text="Спробуй змінити фільтри або пошуковий запит."
+            action={<Button variant="outlined" onClick={() => { setSearch(''); resetFilters() }}>Скинути всі фільтри</Button>}
+          />
+        </GlassCard>
+      ) : (
+        <Box sx={gridSx}>
+          {filtered.map((club, idx) => {
+            const clubCity = cityOf(club)
+            return (
+              <Reveal key={club.id} delay={(idx % 3) * 80}>
+                <GlassCard
+                  hover
+                  component="article"
+                  sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', cursor: 'pointer' }}
+                  onClick={() => navigate(`/clubs/${club.id}`)}
+                >
+                  <ClubBanner id={club.id} name={club.name} height={180}>
+                    <Box sx={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                      <StatusBadge status="online" label="Відкрито" />
+                      {club.review_count > 0 && (
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, height: 24, borderRadius: '8px', bgcolor: cr.glassStrong, backdropFilter: 'blur(8px)', border: `1px solid ${tint(cr.vip, 40)}` }}>
+                          <StarIcon sx={{ fontSize: 14, color: cr.vip }} />
+                          <Mono sx={{ fontSize: '0.75rem', fontWeight: 700, color: cr.text }}>{(club.avg_rating || 0).toFixed(1)}</Mono>
+                          <Mono sx={{ fontSize: '0.68rem', color: cr.muted }}>({club.review_count})</Mono>
+                        </Box>
+                      )}
+                    </Box>
+                    <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 12 }}>
+                      <Typography component="h2" sx={{ fontFamily: font.display, fontWeight: 700, fontSize: '1.2rem', lineHeight: 1.2, color: cr.text }}>
+                        {club.name}
+                      </Typography>
+                      {clubCity && <Mono sx={{ fontSize: '0.7rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: cr.cyanText }}>{clubCity}</Mono>}
+                    </Box>
+                  </ClubBanner>
 
-      {filtered.length === 0 && !loading && (
-        <Box sx={{ textAlign: 'center', py: 10 }}>
-          <StorefrontIcon sx={{ fontSize: 72, color: 'rgba(147,51,234,0.2)', mb: 2 }} />
-          <Typography color="text.secondary" variant="h6">Клубів не знайдено</Typography>
-          <Button variant="outlined" sx={{ mt: 3 }} onClick={() => { setSearch(''); setMinRating(0); setMaxPrice(0) }}>
-            Скинути всі фільтри
-          </Button>
+                  <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, mb: 1.25 }}>
+                      <LocationOnIcon sx={{ fontSize: 16, color: cr.primaryText, mt: '2px', flexShrink: 0 }} />
+                      <Typography variant="body2" sx={{ color: cr.muted }}>{club.address}</Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: cr.muted, mb: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.65 }}>
+                      {club.description}
+                    </Typography>
+
+                    <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, pt: 2, borderTop: `1px solid ${cr.borderSoft}` }}>
+                      <Box>
+                        <Typography sx={{ fontFamily: font.mono, fontSize: '0.62rem', letterSpacing: '0.16em', color: cr.faint }}>ЦІНА ВІД</Typography>
+                        <Mono sx={{ fontSize: '1.3rem', fontWeight: 700, color: cr.text, textShadow: `0 0 14px ${tint(cr.primary2, 45)}` }}>
+                          {club.min_price ? `₴${Math.round(club.min_price)}` : '—'}
+                          <Box component="span" sx={{ fontSize: '0.75rem', color: cr.muted, fontWeight: 500 }}>/год</Box>
+                        </Mono>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/clubs/${club.id}`) }}
+                        aria-label={`Переглянути та забронювати: ${club.name}`}
+                      >
+                        Обрати місце
+                      </Button>
+                    </Box>
+                  </Box>
+                </GlassCard>
+              </Reveal>
+            )
+          })}
         </Box>
       )}
-
-      <Grid container spacing={3}>
-        {filtered.map((club, idx) => (
-          <Grid item xs={12} sm={6} md={4} key={club.id}>
-            <Card sx={{
-              height: '100%', display: 'flex', flexDirection: 'column',
-              transition: 'transform 0.25s,box-shadow 0.25s',
-              '&:hover': { transform: 'translateY(-6px)', boxShadow: '0 8px 32px rgba(147,51,234,0.25)', borderColor: 'rgba(147,51,234,0.5)' },
-            }}>
-              <Box sx={{
-                height: 110,
-                background: `${CIRCUIT_BG} repeat, ${CLUB_GRADIENTS[idx % CLUB_GRADIENTS.length]}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                px: 3, position: 'relative', overflow: 'hidden',
-                '&::after': { content: '""', position: 'absolute', bottom: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(147,51,234,0.1)' },
-              }}>
-                <StorefrontIcon sx={{ fontSize: 52, color: 'rgba(168,85,247,0.6)' }} />
-                <Box sx={{ textAlign: 'right', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
-                  <Chip label="Доступний" size="small" sx={{ background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', fontWeight: 600 }} />
-                  {club.min_price && (
-                    <Chip label={`від ₴${Math.round(club.min_price)}/год`} size="small"
-                      sx={{ background: 'rgba(168,85,247,0.2)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.4)', fontWeight: 600, fontSize: '0.7rem' }} />
-                  )}
-                </Box>
-              </Box>
-
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography variant="h6" fontWeight={700} gutterBottom>{club.name}</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mb: 1 }}>
-                  <LocationOnIcon sx={{ fontSize: 15, color: '#a855f7', mt: '3px', flexShrink: 0 }} />
-                  <Typography variant="body2" color="text.secondary">{club.address}</Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {club.description}
-                </Typography>
-                {club.review_count > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <Rating value={club.avg_rating || 0} precision={0.5} readOnly size="small"
-                      sx={{ '& .MuiRating-iconFilled': { color: '#f59e0b' } }} />
-                    <Typography variant="caption" color="text.secondary">
-                      {(club.avg_rating || 0).toFixed(1)} ({club.review_count})
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-
-              <CardActions sx={{ px: 2, pb: 2 }}>
-                <Button variant="contained" fullWidth onClick={() => navigate(`/clubs/${club.id}`)}>
-                  Переглянути та забронювати
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
     </Box>
   )
 }
