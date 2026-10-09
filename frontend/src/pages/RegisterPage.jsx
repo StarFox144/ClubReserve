@@ -37,7 +37,9 @@ const RegisterPage = () => {
   const mismatch = form.confirmPassword.length > 0 && form.password !== form.confirmPassword
 
   return (
-    <AuthShell code="AUTH://REGISTER" title="Новий гравець" subtitle="Створіть акаунт у ClubReserve — це займе менше хвилини." icon={<PersonAddIcon />} accent={cr.cyan}>
+    <AuthShell code="AUTH://REGISTER" title="Новий гравець" subtitle="Створіть акаунт у ClubReserve — це займе менше хвилини." icon={<PersonAddIcon />} accent={cr.cyan}
+      headline="Приєднуйся до гри"
+      perks={['Миттєве бронювання без черг', 'QR-код підтвердження', 'Бали лояльності та досягнення', 'Відгуки та рейтинги клубів']}>
       {error && <Alert severity="error" sx={{ mb: 3 }} role="alert">{error}</Alert>}
 
       <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>

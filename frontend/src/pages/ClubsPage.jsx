@@ -9,11 +9,17 @@ import StarIcon from '@mui/icons-material/Star'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import FilterAltOffIcon from '@mui/icons-material/FilterAltOff'
 import TuneIcon from '@mui/icons-material/Tune'
+import StorefrontIcon from '@mui/icons-material/Storefront'
+import PlaceIcon from '@mui/icons-material/Place'
+import PaymentsIcon from '@mui/icons-material/Payments'
+import GridViewIcon from '@mui/icons-material/GridView'
+import QrCode2Icon from '@mui/icons-material/QrCode2'
+import BoltIcon from '@mui/icons-material/Bolt'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useState, useEffect, useMemo } from 'react'
 import { getClubs } from '../api/clubs'
 import { cr, font, tint } from '../design/tokens'
-import { EmptyState, GlassCard, Mono, Reveal, SectionHeader, StatusBadge } from '../components/ui'
+import { EmptyState, GlassCard, HudStat, Marquee, Mono, Reveal, SectionHeader, StatusBadge } from '../components/ui'
 import ClubBanner from '../components/club/ClubBanner'
 import { cityOf } from '../components/club/clubUtils'
 
@@ -22,6 +28,12 @@ const MAX_PRICE_OPTIONS = [
   { label: 'до ₴50/год', value: 50 },
   { label: 'до ₴70/год', value: 70 },
   { label: 'до ₴100/год', value: 100 },
+]
+
+const PERKS = [
+  { icon: <GridViewIcon />, title: 'Схема залу наживо', text: 'Статус кожного ПК оновлюється автоматично — бачиш вільні місця ще до приходу.', accent: cr.primary2 },
+  { icon: <BoltIcon />, title: 'Бронювання за хвилину', text: 'Місце → час → підтвердження. Без дзвінків і передоплат на картку адміну.', accent: cr.cyan },
+  { icon: <QrCode2Icon />, title: 'QR-доступ', text: 'Покажи код на рецепції — і сідай грати. PDF-квиток завжди під рукою.', accent: cr.magenta },
 ]
 
 const ClubCardSkeleton = () => (
@@ -78,6 +90,10 @@ const ClubsPage = () => {
     return result
   }, [clubs, search, sort, minRating, maxPrice, city])
 
+  const prices = clubs.map((c) => c.min_price).filter((v) => v != null)
+  const rated = clubs.filter((c) => c.avg_rating != null)
+  const avgRating = rated.length ? rated.reduce((s, c) => s + c.avg_rating, 0) / rated.length : null
+
   const resetFilters = () => { setMinRating(0); setMaxPrice(0); setCity('') }
 
   return (
@@ -89,6 +105,18 @@ const ClubsPage = () => {
         subtitle={loading ? 'Сканування мережі клубів…' : `${clubs.length} ${clubs.length === 1 ? 'клуб' : 'клубів'} онлайн. Обери свій і забронюй місце на схемі залу.`}
         size="md"
       />
+
+      {/* ── Network stats ── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: { xs: 1.5, md: 2 }, mb: 3 }}>
+        {[
+          { label: 'Клубів онлайн', value: clubs.length, icon: <StorefrontIcon />, accent: cr.primary2 },
+          { label: 'Міст', value: cities.length, icon: <PlaceIcon />, accent: cr.cyan },
+          { label: 'Ціна від', value: prices.length ? `₴${Math.round(Math.min(...prices))}` : '—', icon: <PaymentsIcon />, accent: cr.success },
+          { label: 'Сер. рейтинг', value: avgRating ? avgRating.toFixed(1) : '—', icon: <StarIcon />, accent: cr.vip },
+        ].map((s) => (
+          <HudStat key={s.label} compact label={s.label} value={loading ? '—' : s.value} icon={s.icon} accent={s.accent} />
+        ))}
+      </Box>
 
       {/* ── Filters ── */}
       <GlassCard strong sx={{ p: { xs: 2, md: 2.5 }, mb: 4 }} role="search" aria-label="Фільтри клубів">
@@ -224,6 +252,26 @@ const ClubsPage = () => {
           })}
         </Box>
       )}
+
+      {/* ── Perks band ── */}
+      <Box sx={{ mt: { xs: 8, md: 12 } }}>
+        <Marquee items={cities.length ? [...cities, 'Нові клуби щотижня', 'RTX 40-серія', '240–360 Гц', 'VIP-зони'] : ['RTX 40-серія', '240–360 Гц', 'VIP-зони', 'Нічні тарифи']} label="Мережа клубів" sx={{ mb: { xs: 4, md: 5 }, mx: { xs: -2, sm: -3 } }} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+          {PERKS.map((p, i) => (
+            <Reveal key={p.title} delay={i * 80}>
+              <GlassCard hover accent={p.accent} sx={{ p: 3, height: '100%', display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <Box sx={{ width: 44, height: 44, flexShrink: 0, borderRadius: '12px', display: 'grid', placeItems: 'center', color: p.accent, bgcolor: tint(p.accent, 12), border: `1px solid ${tint(p.accent, 35)}`, boxShadow: `0 0 16px ${tint(p.accent, 25)}` }}>
+                  {p.icon}
+                </Box>
+                <Box>
+                  <Typography variant="h6" component="h3" sx={{ mb: 0.75 }}>{p.title}</Typography>
+                  <Typography sx={{ color: cr.muted, fontSize: '0.92rem', lineHeight: 1.65 }}>{p.text}</Typography>
+                </Box>
+              </GlassCard>
+            </Reveal>
+          ))}
+        </Box>
+      </Box>
     </Box>
   )
 }

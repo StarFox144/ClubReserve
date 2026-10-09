@@ -66,6 +66,8 @@
   --cr-noise-opacity: 0.05;
   --cr-grid-line: rgba(168, 85, 247, 0.55);
   --cr-grid-line-2: rgba(34, 211, 238, 0.35);
+  --cr-grid-dot: rgba(168, 85, 247, 0.16);
+  --cr-cursor-glow: rgba(139, 92, 246, 0.10);
 
   /* Shape */
   --cr-radius-sm: 8px;
@@ -137,6 +139,8 @@ html[data-theme='light'] {
   --cr-noise-opacity: 0.03;
   --cr-grid-line: rgba(124, 58, 237, 0.35);
   --cr-grid-line-2: rgba(6, 182, 212, 0.3);
+  --cr-grid-dot: rgba(124, 58, 237, 0.14);
+  --cr-cursor-glow: rgba(139, 92, 246, 0.08);
 
   --cr-focus-ring: 0 0 0 2px var(--cr-bg), 0 0 0 4px var(--cr-primary), 0 0 12px rgba(124, 58, 237, 0.35);
 
@@ -192,6 +196,50 @@ body {
   pointer-events: none;
   opacity: var(--cr-noise-opacity);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Faint dot grid over the whole page so large empty areas never look flat */
+.cr-dotgrid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, var(--cr-grid-dot) 1px, transparent 1.2px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 85%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 85%);
+}
+
+/* Soft light that follows the cursor (desktop only, positioned from JS) */
+.cr-cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 560px;
+  height: 560px;
+  margin: -280px 0 0 -280px;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--cr-cursor-glow), transparent 60%);
+  opacity: 0;
+  transition: opacity 400ms var(--cr-ease);
+  will-change: transform;
+}
+.cr-cursor-glow.is-on { opacity: 1; }
+
+/* Infinite marquee (content is duplicated in JSX) */
+.cr-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: cr-marquee 38s linear infinite;
+}
+.cr-marquee:hover .cr-marquee-track { animation-play-state: paused; }
+@keyframes cr-marquee { to { transform: translateX(-50%); } }
+
+@keyframes cr-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 /* ── Focus ────────────────────────────────────────────────────── */
@@ -370,4 +418,6 @@ html[data-theme='light'] .cr-glitch::after { mix-blend-mode: multiply; opacity: 
   .cr-glitch::before, .cr-glitch::after { display: none; }
   .cr-atmosphere::before, .cr-atmosphere::after, .cr-atmosphere > span { animation: none; }
   .cr-reveal { opacity: 1; transform: none; }
+  .cr-cursor-glow { display: none; }
+  .cr-marquee-track { animation: none; }
 }

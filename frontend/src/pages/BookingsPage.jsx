@@ -190,7 +190,7 @@ const BookingsPage = () => {
       {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>{error}</Alert>}
 
       {loading ? (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }, gap: 2 }}>
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={200} />)}
         </Box>
       ) : filtered.length === 0 ? (
@@ -203,7 +203,7 @@ const BookingsPage = () => {
           />
         </GlassCard>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }, gap: 2 }}>
           {filtered.map((booking, i) => (
             <Reveal key={booking.id} delay={(i % 2) * 70}>
               <BookingTicket booking={booking} now={now} onCancel={handleCancel} onExtend={handleExtend} onQr={setQrBooking} />

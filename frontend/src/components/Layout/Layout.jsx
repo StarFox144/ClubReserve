@@ -2,13 +2,18 @@ import { Box, Container } from '@mui/material'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import NavProgress from '../NavProgress'
+import SideRails from './SideRails'
+import CursorGlow from './CursorGlow'
 
 const Layout = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
       {/* Global atmosphere: aurora blobs + grain */}
       <div className="cr-atmosphere" aria-hidden><span /></div>
+      <div className="cr-dotgrid" aria-hidden />
       <div className="cr-noise" aria-hidden />
+      <CursorGlow />
+      <SideRails />
 
       <Box
         component="a"
@@ -22,7 +27,7 @@ const Layout = ({ children }) => {
       <NavProgress />
       <Navbar />
       <Box component="main" id="main" sx={{ flexGrow: 1, position: 'relative', zIndex: 2, pt: { xs: 11, md: 13 }, pb: { xs: 6, md: 10 } }}>
-        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3 } }}>
           {children}
         </Container>
       </Box>
