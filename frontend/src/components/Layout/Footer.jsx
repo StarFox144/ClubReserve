@@ -38,7 +38,7 @@ const Footer = () => {
   return (
     <Box component="footer" sx={{ position: 'relative', zIndex: 2, mt: 'auto', bgcolor: cr.surface }}>
       <Box aria-hidden sx={{ height: '1px', background: cr.gradLine, boxShadow: `0 0 12px ${tint(cr.primary2, 60)}` }} />
-      <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, py: { xs: 5, md: 7 } }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3 }, py: { xs: 5, md: 7 } }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1.6fr 1fr 1fr' }, gap: { xs: 4, md: 6 } }}>
           <Box>
             <Logo />

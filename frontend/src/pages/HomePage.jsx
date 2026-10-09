@@ -14,7 +14,7 @@ import AllInclusiveIcon from '@mui/icons-material/AllInclusive'
 import VerifiedIcon from '@mui/icons-material/Verified'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { cr, font, tint, ACCENTS } from '../design/tokens'
-import { CountUp, GlassCard, GlitchText, HudStat, Reveal, SectionHeader, StatusBadge, SynthGrid } from '../components/ui'
+import { CountUp, GlassCard, GlitchText, HudStat, Marquee, Reveal, SectionHeader, StatusBadge, SynthGrid } from '../components/ui'
 
 const STATS = [
   { num: 3,    suffix: '+',  label: 'Клуби',             icon: <StorefrontIcon />,   color: cr.primary2 },
@@ -26,18 +26,97 @@ const STATS = [
 // Bento tiles: `span` = grid columns on desktop, `tall` = 2 rows
 const FEATURES = [
   { icon: <GridViewIcon />, title: 'Схема залу наживо', text: 'Бачиш кожне місце: вільні, зайняті, VIP. Наведи — побачиш залізо, клікни — бронюй.', span: 2, tall: true, demo: true },
-  { icon: <BoltIcon />, title: 'Бронювання в 3 кроки', text: 'Місце → час → підтвердження. Без дзвінків.', span: 2 },
-  { icon: <QrCode2Icon />, title: 'QR-доступ', text: 'Код підтвердження і PDF-квиток.', span: 1 },
-  { icon: <LocalOfferIcon />, title: 'Промо-коди', text: 'Знижки застосовуються миттєво.', span: 1 },
-  { icon: <MoreTimeIcon />, title: 'Продовження сесії', text: 'Додай +1 або +2 години з особистого кабінету.', span: 2 },
-  { icon: <StarIcon />, title: 'Рейтинги клубів', text: 'Реальні відгуки гравців.', span: 2 },
+  { icon: <BoltIcon />, title: 'Бронювання в 3 кроки', text: 'Місце → час → підтвердження. Без дзвінків.', span: 2, extra: 'steps' },
+  { icon: <QrCode2Icon />, title: 'QR-доступ', text: 'Код підтвердження і PDF-квиток.', span: 1, extra: 'qr' },
+  { icon: <LocalOfferIcon />, title: 'Промо-коди', text: 'Знижки застосовуються миттєво.', span: 1, extra: 'promo' },
+  { icon: <MoreTimeIcon />, title: 'Продовження сесії', text: 'Додай +1 або +2 години з особистого кабінету.', span: 2, extra: 'extend' },
+  { icon: <StarIcon />, title: 'Рейтинги клубів', text: 'Реальні відгуки гравців.', span: 2, extra: 'rating' },
 ]
+
+// Deterministic 7×7 pseudo-QR pattern
+const QR_CELLS = Array.from({ length: 49 }, (_, i) => {
+  const x = i % 7; const y = Math.floor(i / 7)
+  const finder = (x < 2 && y < 2) || (x > 4 && y < 2) || (x < 2 && y > 4)
+  return finder || ((x * 3 + y * 5 + x * y) % 3 === 0)
+})
+
+// Small decorative illustrations at the bottom of bento tiles
+const TileExtra = ({ kind, accent }) => {
+  const chip = { fontFamily: font.mono, fontSize: '0.75rem', fontWeight: 700, px: 1.25, py: 0.5, borderRadius: '8px', border: `1px solid ${tint(accent, 45)}`, bgcolor: tint(accent, 10), color: cr.text }
+  if (kind === 'steps') return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {['Місце', 'Час', 'OK'].map((l, i) => (
+        <Box key={l} sx={{ display: 'contents' }}>
+          {i > 0 && <Box sx={{ flex: 1, height: 2, background: `linear-gradient(90deg, ${accent}, ${cr.primary2})`, boxShadow: `0 0 8px ${accent}`, opacity: 0.8 }} />}
+          <Box sx={{ ...chip, ...(i === 2 && { bgcolor: tint(cr.success, 14), borderColor: tint(cr.success, 50) }) }}>{String(i + 1).padStart(2, '0')} · {l}</Box>
+        </Box>
+      ))}
+    </Box>
+  )
+  if (kind === 'qr') return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', width: 84, p: 1, borderRadius: '10px', border: `1px solid ${tint(accent, 40)}`, boxShadow: `0 0 16px ${tint(accent, 20)}` }}>
+      {QR_CELLS.map((on, i) => <Box key={i} sx={{ aspectRatio: '1', borderRadius: '1px', bgcolor: on ? accent : 'transparent', opacity: on ? 0.85 : 1 }} />)}
+    </Box>
+  )
+  if (kind === 'promo') return (
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', border: `1px dashed ${tint(accent, 60)}`, borderRadius: '10px', overflow: 'hidden' }}>
+      <Box sx={{ fontFamily: font.mono, fontWeight: 700, letterSpacing: '0.14em', px: 1.5, py: 0.75, color: cr.text }}>NEON10</Box>
+      <Box sx={{ fontFamily: font.mono, fontWeight: 700, px: 1.25, py: 0.75, bgcolor: tint(accent, 18), color: cr.successText }}>−10%</Box>
+    </Box>
+  )
+  if (kind === 'extend') return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ ...chip, bgcolor: tint(cr.success, 10), borderColor: tint(cr.success, 40) }}>⏱ 01:24:07</Box>
+      <Box sx={chip}>+1 год</Box>
+      <Box sx={chip}>+2 год</Box>
+    </Box>
+  )
+  if (kind === 'rating') return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ fontFamily: font.mono, fontWeight: 700, fontSize: '2rem', lineHeight: 1, color: cr.text, textShadow: `0 0 16px ${tint(cr.vip, 50)}` }}>4.8</Box>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {[86, 64, 22, 8].map((w, i) => (
+          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ fontFamily: font.mono, fontSize: '0.6rem', color: cr.faint, width: 8 }}>{5 - i}</Box>
+            <Box sx={{ flex: 1, height: 4, borderRadius: 4, bgcolor: tint(cr.vip, 12) }}>
+              <Box sx={{ width: `${w}%`, height: '100%', borderRadius: 4, bgcolor: cr.vip, boxShadow: `0 0 6px ${tint(cr.vip, 60)}` }} />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  )
+  return null
+}
 
 const STEPS = [
   { title: 'Обери клуб', text: 'Порівняй клуби за рейтингом, ціною та розташуванням.' },
   { title: 'Обери місце й час', text: 'Клікни на ПК на схемі залу і вибери вільний слот.' },
   { title: 'Грай', text: 'Покажи QR-код адміністратору — місце вже чекає.' },
 ]
+
+const GAMES = ['Counter-Strike 2', 'Dota 2', 'Valorant', 'League of Legends', 'Fortnite', 'PUBG', 'Apex Legends', 'Rocket League', 'GTA V', 'Minecraft', 'Overwatch 2', 'Rainbow Six Siege']
+
+// Decorative HUD widgets floating in the hero's side space (desktop only)
+const HeroWidget = ({ sx, delay = 0, accent, title, children }) => (
+  <Box aria-hidden sx={{
+    position: 'absolute', zIndex: 1, width: 210, p: 1.75,
+    display: { xs: 'none', xl: 'block' },
+    borderRadius: '14px', bgcolor: cr.glassStrong, backdropFilter: 'blur(12px)',
+    border: `1px solid ${tint(accent, 40)}`, boxShadow: `0 0 24px ${tint(accent, 18)}`,
+    animation: `cr-float 6s ease-in-out ${delay}s infinite`,
+    ...sx,
+  }}>
+    <Typography sx={{ fontFamily: font.mono, fontSize: '0.6rem', letterSpacing: '0.18em', color: cr.faint, mb: 1 }}>{title}</Typography>
+    {children}
+  </Box>
+)
+
+const Bars = ({ values, color }) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: 28 }}>
+    {values.map((v, i) => <Box key={i} sx={{ flex: 1, height: `${v}%`, borderRadius: '2px', bgcolor: color, opacity: 0.35 + (v / 100) * 0.65, boxShadow: `0 0 6px ${tint(color, 50)}` }} />)}
+  </Box>
+)
 
 // Mini hall map used as decoration in the hero bento tile
 const DEMO_SEATS = ['f', 'f', 'b', 'f', 'v', 'f', 'b', 'f', 'f', 'm', 'f', 'b', 'f', 'f', 'v', 'f', 'b', 'f']
@@ -78,6 +157,37 @@ const HomePage = () => {
           </Box>
 
           <SynthGrid />
+
+          <HeroWidget accent={cr.success} title="// STATION PC-07" sx={{ left: { lg: 28, xl: 48 }, top: 90 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography sx={{ fontFamily: font.mono, fontWeight: 700, color: cr.text }}>RTX 4090</Typography>
+              <StatusBadge status="free" />
+            </Box>
+            <Typography sx={{ fontFamily: font.mono, fontSize: '0.72rem', color: cr.muted }}>i9-13900KS · 64 GB · 360 Гц</Typography>
+          </HeroWidget>
+
+          <HeroWidget accent={cr.cyan} delay={1.5} title="// NETWORK" sx={{ left: { lg: 48, xl: 90 }, bottom: 90 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+              <Typography sx={{ fontFamily: font.mono, fontSize: '0.72rem', color: cr.muted }}>PING</Typography>
+              <Typography sx={{ fontFamily: font.mono, fontWeight: 700, color: cr.cyanText }}>12 ms</Typography>
+            </Box>
+            <Bars values={[40, 55, 35, 70, 50, 85, 60, 75, 45, 90, 65, 80]} color={cr.cyan} />
+          </HeroWidget>
+
+          <HeroWidget accent={cr.primary2} delay={0.8} title="// ЗАЛ · ЗАВАНТАЖЕННЯ" sx={{ right: { lg: 28, xl: 48 }, top: 110 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+              <Typography sx={{ fontFamily: font.mono, fontSize: '0.72rem', color: cr.muted }}>Вільно</Typography>
+              <Typography sx={{ fontFamily: font.mono, fontWeight: 700, color: cr.text }}>8/15</Typography>
+            </Box>
+            <Box sx={{ height: 6, borderRadius: 6, bgcolor: tint(cr.primary, 18), overflow: 'hidden' }}>
+              <Box sx={{ width: '53%', height: '100%', borderRadius: 6, background: `linear-gradient(90deg, ${cr.success}, ${cr.cyan})`, boxShadow: `0 0 10px ${cr.success}` }} />
+            </Box>
+          </HeroWidget>
+
+          <HeroWidget accent={cr.magenta} delay={2.2} title="// НАСТУПНИЙ СЛОТ" sx={{ right: { lg: 48, xl: 90 }, bottom: 100 }}>
+            <Typography sx={{ fontFamily: font.mono, fontWeight: 700, fontSize: '1.4rem', color: cr.text, textShadow: `0 0 14px ${tint(cr.magenta, 50)}` }}>18:30</Typography>
+            <Typography sx={{ fontFamily: font.mono, fontSize: '0.72rem', color: cr.muted }}>2 год · ₴160</Typography>
+          </HeroWidget>
 
           <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', px: { xs: 2.5, md: 6 }, pt: { xs: 6, md: 10 }, pb: { xs: 8, md: 14 } }}>
             <Typography sx={{ fontFamily: font.mono, fontSize: { xs: '0.7rem', md: '0.78rem' }, letterSpacing: '0.24em', textTransform: 'uppercase', color: cr.cyanText, mb: 2.5 }}>
@@ -124,6 +234,9 @@ const HomePage = () => {
         </Box>
       </Box>
 
+      {/* ── Games ticker ── */}
+      <Marquee items={GAMES} label="Популярні ігри в клубах" sx={{ mb: { xs: 3, md: 4 }, mx: { xs: -2, sm: -3 } }} />
+
       {/* ── Stats ── */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: { xs: 1.5, md: 2 }, mb: { xs: 10, md: 14 } }}>
         {STATS.map((s, i) => (
@@ -158,6 +271,8 @@ const HomePage = () => {
                   </Box>
                   <Typography variant="h6" component="h3" sx={{ mb: 1 }}>{f.title}</Typography>
                   <Typography sx={{ color: cr.muted, lineHeight: 1.7, fontSize: '0.94rem' }}>{f.text}</Typography>
+
+                  {f.extra && <Box aria-hidden sx={{ mt: 'auto', pt: 2.5 }}><TileExtra kind={f.extra} accent={accent} /></Box>}
 
                   {f.demo && (
                     <Box aria-hidden sx={{ mt: 'auto', pt: 3 }}>

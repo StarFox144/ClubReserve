@@ -99,10 +99,10 @@ const Zone = ({ title, color, items, busyIds, selectedId, onSelect, vip }) => (
       {title}
     </Typography>
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      {chunk(items, 6).map((row, r) => (
+      {chunk(items, 8).map((row, r) => (
         <Box key={r} sx={{ display: 'flex', gap: 1.25 }}>
           {row.map((pc, i) => (
-            <Box key={pc.id} sx={{ display: 'flex', ml: i === 3 ? 3 : 0 }}>
+            <Box key={pc.id} sx={{ display: 'flex', ml: i === 4 ? 3 : 0 }}>
               <Seat pc={pc} status={seatStatus(pc, busyIds)} vip={vip} selected={pc.id === selectedId} onSelect={onSelect} />
             </Box>
           ))}

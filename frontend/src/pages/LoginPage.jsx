@@ -35,7 +35,9 @@ const LoginPage = () => {
   }
 
   return (
-    <AuthShell code="AUTH://LOGIN" title="Вхід у систему" subtitle="Введіть свої дані для доступу до бронювань." icon={<LockOutlinedIcon />}>
+    <AuthShell code="AUTH://LOGIN" title="Вхід у систему" subtitle="Введіть свої дані для доступу до бронювань." icon={<LockOutlinedIcon />}
+      headline="З поверненням, гравцю"
+      perks={["Реальний статус комп'ютерів", 'Промо-коди та знижки', 'QR-підтвердження бронювань', 'Продовження сесії онлайн']}>
       {successMsg && <Alert severity="success" sx={{ mb: 3 }}>{successMsg}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 3 }} role="alert">{error}</Alert>}
 

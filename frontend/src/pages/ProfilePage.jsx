@@ -91,8 +91,11 @@ const ProfilePage = () => {
   ]
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+    <Box>
       <SectionHeader component="h1" label="Player profile" title="Профіль гравця" size="md" />
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.1fr) minmax(0, 1fr)' }, gap: 3, alignItems: 'start' }}>
+      <Box>
 
       {/* ── Identity ── */}
       <GlassCard hud accent={level.color} strong sx={{ p: { xs: 2.5, md: 4 }, mb: 3, overflow: 'hidden' }}>
@@ -150,7 +153,7 @@ const ProfilePage = () => {
       </GlassCard>
 
       {/* ── Player stats ── */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: { xs: 1.5, md: 2 }, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)', lg: 'repeat(2, 1fr)' }, gap: { xs: 1.5, md: 2 }, mb: { xs: 3, lg: 0 } }}>
         {STAT_ITEMS.map((s, i) => (
           <Reveal key={s.label} delay={i * 70}>
             <HudStat label={s.label} icon={s.icon} accent={s.accent} value={statsLoading ? '…' : s.value} />
@@ -158,6 +161,9 @@ const ProfilePage = () => {
         ))}
       </Box>
 
+      </Box>
+
+      <Box>
       {/* ── Achievements ── */}
       <GlassCard sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
@@ -165,7 +171,7 @@ const ProfilePage = () => {
           <Typography variant="h6" component="h3">Досягнення</Typography>
           <Mono sx={{ ml: 'auto', fontSize: '0.85rem', color: cr.muted }}>{earnedBadges.length}/{BADGES.length}</Mono>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1.25 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)', lg: 'repeat(2, 1fr)' }, gap: 1.25 }}>
           {earnedBadges.map((b) => (
             <Tooltip key={b.id} title={b.desc}>
               <Box tabIndex={0} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1.25, borderRadius: '12px', bgcolor: tint(cr.primary2, 10), border: `1px solid ${tint(cr.primary2, 40)}`, boxShadow: `inset 0 0 14px ${tint(cr.primary2, 12)}`, transition: 'transform 200ms var(--cr-ease)', '&:hover': { transform: 'translateY(-2px)' }, '&:focus-visible': { boxShadow: cr.focusRing } }}>
@@ -225,6 +231,8 @@ const ProfilePage = () => {
           </Box>
         )}
       </GlassCard>
+      </Box>
+      </Box>
     </Box>
   )
 }

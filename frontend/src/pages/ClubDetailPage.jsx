@@ -45,6 +45,36 @@ const BOOKING_STEPS = ['Місце', 'Дата і час', 'Підтвердже
 
 const toApiStr = (dj) => dj?.isValid() ? dj.format('YYYY-MM-DDTHH:mm') : ''
 
+// Occupancy donut for the "nothing selected" side panel
+const OccupancyRing = ({ segments, total }) => {
+  const r = 52
+  const c = 2 * Math.PI * r
+  let offset = 0
+  return (
+    <Box sx={{ position: 'relative', width: 140, height: 140, mx: 'auto' }}>
+      <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label={segments.map((s) => `${s.label}: ${s.value}`).join(', ')}>
+        <circle cx="70" cy="70" r={r} fill="none" stroke={tint(cr.primary, 15)} strokeWidth="12" />
+        {segments.filter((s) => s.value > 0).map((s) => {
+          const len = total ? (s.value / total) * c : 0
+          const el = (
+            <circle key={s.label} cx="70" cy="70" r={r} fill="none" stroke={s.color} strokeWidth="12"
+              strokeDasharray={`${Math.max(len - 3, 0)} ${c}`} strokeDashoffset={-offset} strokeLinecap="round"
+              transform="rotate(-90 70 70)" style={{ filter: `drop-shadow(0 0 6px ${s.color})` }} />
+          )
+          offset += len
+          return el
+        })}
+      </svg>
+      <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+        <Box>
+          <Mono sx={{ display: 'block', fontSize: '1.8rem', fontWeight: 700, color: cr.text, lineHeight: 1 }}>{segments[0].value}</Mono>
+          <Mono sx={{ fontSize: '0.62rem', letterSpacing: '0.16em', color: cr.muted }}>/ {total} ВІЛЬНО</Mono>
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
 const capsLabel = { fontFamily: font.mono, fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: cr.muted }
 
 const ClubDetailPage = () => {
@@ -206,6 +236,7 @@ const ClubDetailPage = () => {
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
   const hasReviewed = user && reviews.some((r) => r.user_id === user.id)
 
+  const prices = computers.filter((c) => c.price_per_hour).map((c) => Math.round(Number(c.price_per_hour)))
   const selected = computers.find((c) => c.id === selectedId) || null
   const selectedStatus = selected ? seatStatus(selected, busyIds) : null
 
@@ -298,7 +329,47 @@ const ClubDetailPage = () => {
             {/* Selected seat panel */}
             <GlassCard hud={Boolean(selected)} accent={cr.cyan} strong sx={{ p: 2.5, position: { lg: 'sticky' }, top: { lg: 96 } }} aria-live="polite">
               {!selected ? (
-                <EmptyState compact art="pc" title="Місце не обрано" text="Клікни на будь-який ПК на схемі залу." sx={{ py: 3 }} />
+                <Box>
+                  <Typography sx={capsLabel}>// Стан залу</Typography>
+                  <Box sx={{ my: 2.5 }}>
+                    <OccupancyRing
+                      total={computers.length}
+                      segments={[
+                        { label: 'Вільно', value: freeCount, color: cr.success },
+                        { label: 'Зайнято', value: busyCount, color: cr.danger },
+                        { label: 'Тех. огляд', value: maintenanceCount, color: cr.warning },
+                      ]}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2.5 }}>
+                    {[
+                      { k: 'free', v: freeCount },
+                      { k: 'busy', v: busyCount },
+                      { k: 'maintenance', v: maintenanceCount },
+                      { k: 'vip', v: computers.filter(isVip).length },
+                    ].map(({ k, v }) => (
+                      <Box key={k} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 0.9, borderRadius: '10px', bgcolor: tint(STATUS[k].color, 7), border: `1px solid ${tint(STATUS[k].color, 22)}` }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: STATUS[k].color, boxShadow: `0 0 6px ${STATUS[k].color}` }} />
+                          <Typography sx={{ fontSize: '0.86rem', fontWeight: 600 }}>{STATUS[k].label}</Typography>
+                        </Box>
+                        <Mono sx={{ fontWeight: 700, color: cr.text }}>{v}</Mono>
+                      </Box>
+                    ))}
+                  </Box>
+                  {prices.length > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', pt: 2, mb: 2, borderTop: `1px dashed ${cr.border}` }}>
+                      <Typography sx={capsLabel}>Тарифи</Typography>
+                      <Mono sx={{ fontSize: '1.15rem', fontWeight: 700, color: cr.text }}>
+                        ₴{Math.min(...prices)}{Math.max(...prices) !== Math.min(...prices) ? `–${Math.max(...prices)}` : ''}<Box component="span" sx={{ fontSize: '0.78rem', color: cr.muted }}>/год</Box>
+                      </Mono>
+                    </Box>
+                  )}
+                  <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.85rem', color: cr.cyanText }}>
+                    <ArrowBackIcon sx={{ fontSize: 16, display: { xs: 'none', lg: 'inline' } }} />
+                    Клікни на ПК на схемі, щоб обрати місце
+                  </Typography>
+                </Box>
               ) : (
                 <Box key={selected.id} sx={{ animation: 'cr-fade-up 300ms var(--cr-ease)' }}>
                   <Typography sx={capsLabel}>// Обране місце</Typography>

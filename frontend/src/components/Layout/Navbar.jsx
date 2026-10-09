@@ -171,7 +171,7 @@ const Navbar = () => {
         sx={{
           pointerEvents: 'auto',
           mx: 'auto',
-          maxWidth: scrolled ? 1080 : 1200,
+          maxWidth: scrolled ? 1440 : 1536,
           height: scrolled ? 54 : 64,
           px: { xs: 1.5, sm: 2.5 },
           display: 'flex', alignItems: 'center', gap: 1,
