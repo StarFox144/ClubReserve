@@ -31,12 +31,13 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import BlockIcon from '@mui/icons-material/Block'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PercentIcon from '@mui/icons-material/Percent'
+import StarIcon from '@mui/icons-material/Star'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getAllClubsAdmin, createClub, updateClub, deleteClub } from '../api/clubs'
 import { getAllComputersAdmin, createComputer, updateComputer, deleteComputer } from '../api/computers'
 import { getAllUsersAdmin, toggleUserAdmin, toggleUserActive } from '../api/users'
-import { getAdminStats } from '../api/admin'
+import { getAdminStats, getAllReviewsAdmin, deleteReviewAdmin, getAllBookingsAdmin } from '../api/admin'
 import { getPromos, createPromo, togglePromo } from '../api/promos'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { cr, font, tint } from '../design/tokens'
@@ -84,6 +85,8 @@ const AdminPage = () => {
         <Tab value="computers" label="Комп'ютери" />
         <Tab value="users" label="Користувачі" />
         <Tab value="promos" label="Промо-коди" />
+        <Tab value="bookings" label="Бронювання" />
+        <Tab value="reviews" label="Відгуки" />
       </Tabs>
 
       {tab === 'stats'     && <StatsAdmin />}
@@ -91,6 +94,8 @@ const AdminPage = () => {
       {tab === 'computers' && <ComputersAdmin />}
       {tab === 'users'     && <UsersAdmin />}
       {tab === 'promos'    && <PromosAdmin />}
+      {tab === 'bookings'  && <BookingsAdmin />}
+      {tab === 'reviews'   && <ReviewsAdmin />}
     </Box>
   )
 }
@@ -717,6 +722,154 @@ const PromosAdmin = () => {
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  )
+}
+
+/* ─── Bookings Admin ───────────────────────────────────────── */
+
+const fmtDate = (d) => new Date(d).toLocaleString('uk-UA', {
+  day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+})
+
+const UserCell = ({ username, userId }) => (
+  <TableCell>
+    <Typography variant="body2" fontWeight={700}>{username}</Typography>
+    <Mono sx={{ fontSize: '0.7rem', color: cr.faint }}>ID {userId}</Mono>
+  </TableCell>
+)
+
+const BookingsAdmin = () => {
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getAllBookingsAdmin()
+      .then(setBookings)
+      .catch(() => setError('Помилка завантаження бронювань'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <Loader />
+
+  return (
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {bookings.length === 0 && !error ? (
+        <GlassCard><EmptyState compact art="calendar" title="Бронювань ще немає" /></GlassCard>
+      ) : (
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Користувач</TableCell>
+                <TableCell>Комп'ютер</TableCell>
+                <TableCell>Клуб</TableCell>
+                <TableCell>Початок</TableCell>
+                <TableCell>Кінець</TableCell>
+                <TableCell>Статус</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bookings.map((b) => (
+                <TableRow key={b.id} hover>
+                  <TableCell sx={idCell}>{b.id}</TableCell>
+                  <UserCell username={b.username} userId={b.user_id} />
+                  <TableCell sx={monoCell}>{b.computer_name ?? `ID ${b.computer_id}`}</TableCell>
+                  <TableCell sx={{ color: cr.muted, fontSize: '0.85rem' }}>{b.club_name ?? '—'}</TableCell>
+                  <TableCell sx={{ ...monoCell, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(b.start_time)}</TableCell>
+                  <TableCell sx={{ ...monoCell, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(b.end_time)}</TableCell>
+                  <TableCell><StatusBadge status={b.status} pulse={false} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
+  )
+}
+
+/* ─── Reviews Admin ────────────────────────────────────────── */
+
+const ReviewsAdmin = () => {
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getAllReviewsAdmin()
+      .then(setReviews)
+      .catch(() => setError('Помилка завантаження відгуків'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Видалити цей відгук?')) return
+    try {
+      await deleteReviewAdmin(id)
+      setReviews((prev) => prev.filter((r) => r.id !== id))
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Помилка видалення')
+    }
+  }
+
+  if (loading) return <Loader />
+
+  return (
+    <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {reviews.length === 0 && !error ? (
+        <GlassCard><EmptyState compact art="search" title="Відгуків ще немає" /></GlassCard>
+      ) : (
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Користувач</TableCell>
+                <TableCell>Клуб</TableCell>
+                <TableCell>Оцінка</TableCell>
+                <TableCell>Коментар</TableCell>
+                <TableCell>Дата</TableCell>
+                <TableCell align="right">Дії</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {reviews.map((r) => (
+                <TableRow key={r.id} hover>
+                  <TableCell sx={idCell}>{r.id}</TableCell>
+                  <UserCell username={r.username} userId={r.user_id} />
+                  <TableCell sx={{ color: cr.muted, fontSize: '0.85rem' }}>{r.club_name ?? `ID ${r.club_id}`}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <StarIcon sx={{ fontSize: 14, color: cr.vip }} />
+                      <Mono sx={{ fontWeight: 700, color: cr.vipText }}>{r.rating}</Mono>
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 280 }}>
+                    <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: r.comment ? cr.text : cr.faint }}>
+                      {r.comment || '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ ...monoCell, fontSize: '0.8rem', whiteSpace: 'nowrap', color: cr.muted }}>
+                    {new Date(r.created_at).toLocaleDateString('uk-UA')}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Видалити відгук">
+                      <IconButton size="small" onClick={() => handleDelete(r.id)} aria-label="Видалити відгук" sx={actionBtn(cr.dangerText)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   )
 }

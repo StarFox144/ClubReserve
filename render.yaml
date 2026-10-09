@@ -1,10 +1,4 @@
-﻿databases:
-  - name: clubreserve-db
-    plan: free
-    databaseName: clubreserve
-    user: postgres
-
-services:
+﻿services:
   - type: web
     name: clubreserve-backend
     runtime: python
@@ -14,9 +8,7 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: clubreserve-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: ALGORITHM
