@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { createAppTheme } from '../theme'
 
@@ -18,6 +18,12 @@ export const AppThemeProvider = ({ children }) => {
   }
 
   const theme = useMemo(() => createAppTheme(mode), [mode])
+
+  // CSS design tokens (src/index.css) switch on this attribute
+  useEffect(() => {
+    document.documentElement.dataset.theme = mode
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', mode === 'dark' ? '#05050A' : '#F5F3FF')
+  }, [mode])
 
   return (
     <ThemeContext.Provider value={{ mode, toggleTheme }}>

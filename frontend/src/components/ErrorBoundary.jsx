@@ -1,7 +1,8 @@
 import React from 'react'
 import { Box, Button, Typography } from '@mui/material'
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import { cr, font, tint } from '../design/tokens'
+import { GlassCard } from './ui'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -21,36 +22,31 @@ class ErrorBoundary extends React.Component {
     if (!this.state.hasError) return this.props.children
 
     return (
-      <Box sx={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        minHeight: '60vh', textAlign: 'center', px: 3,
-      }}>
-        <Box className="pulse-glow" sx={{
-          width: 80, height: 80, borderRadius: '50%', mb: 3,
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <ErrorOutlineIcon sx={{ fontSize: 40, color: '#ef4444' }} />
-        </Box>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-          Щось пішло не так
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 4, maxWidth: 400 }}>
-          Виникла неочікувана помилка. Спробуй оновити сторінку.
-        </Typography>
-        {this.state.error && (
-          <Typography variant="caption" color="text.disabled" sx={{ mb: 3, fontFamily: 'monospace', maxWidth: 500, display: 'block' }}>
-            {this.state.error.message}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', px: 2, bgcolor: cr.bg }}>
+        <GlassCard hud accent={cr.danger} sx={{ p: { xs: 3, sm: 5 }, maxWidth: 520, width: '100%', textAlign: 'center' }}>
+          <Typography sx={{ fontFamily: font.mono, fontSize: '0.72rem', letterSpacing: '0.2em', color: cr.dangerText, mb: 2 }}>
+            SYS://FATAL_EXCEPTION
           </Typography>
-        )}
-        <Button
-          variant="contained"
-          startIcon={<RefreshIcon />}
-          onClick={() => window.location.reload()}
-          sx={{ borderRadius: 2 }}
-        >
-          Оновити сторінку
-        </Button>
+          <Typography
+            component="h1"
+            className="cr-glitch"
+            data-text="Щось пішло не так"
+            sx={{ fontFamily: font.display, fontWeight: 800, fontSize: { xs: '1.5rem', sm: '1.9rem' }, mb: 1.5, color: cr.text }}
+          >
+            Щось пішло не так
+          </Typography>
+          <Typography sx={{ color: cr.muted, mb: 3 }}>
+            Виникла неочікувана помилка. Спробуй оновити сторінку.
+          </Typography>
+          {this.state.error && (
+            <Box sx={{ mb: 3, p: 1.5, borderRadius: '10px', textAlign: 'left', fontFamily: font.mono, fontSize: '0.75rem', color: cr.dangerText, bgcolor: tint(cr.danger, 8), border: `1px solid ${tint(cr.danger, 25)}`, wordBreak: 'break-word' }}>
+              &gt; {this.state.error.message}
+            </Box>
+          )}
+          <Button variant="contained" startIcon={<RefreshIcon />} onClick={() => window.location.reload()}>
+            Оновити сторінку
+          </Button>
+        </GlassCard>
       </Box>
     )
   }
